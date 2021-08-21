@@ -153,7 +153,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
     @Nullable
     private Thread shutdownHook;
     /** ResourcePatternResolver used by this context. */
-    private ResourcePatternResolver resourcePatternResolver;
+    private final ResourcePatternResolver resourcePatternResolver;
     /** LifecycleProcessor for managing the lifecycle of beans within this context. */
     @Nullable
     private LifecycleProcessor lifecycleProcessor;
@@ -477,7 +477,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
     @Override
     public void refresh() throws BeansException, IllegalStateException {
         synchronized (this.startupShutdownMonitor) {
-            // Prepare this context for refreshing.
+            // 准备刷新
             prepareRefresh();
 
             // Tell the subclass to refresh the internal bean factory.
@@ -544,11 +544,12 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
      * initialization of property sources.
      */
     protected void prepareRefresh() {
-        // Switch to active.
+        // 设置启动时间
         this.startupDate = System.currentTimeMillis();
+        // 更新状态
         this.closed.set(false);
         this.active.set(true);
-
+        // 检测是否开启 debug
         if (logger.isDebugEnabled()) {
             if (logger.isTraceEnabled()) {
                 logger.trace("Refreshing " + this);
@@ -557,7 +558,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
             }
         }
 
-        // Initialize any placeholder property sources in the context environment.
+        // initialize any placeholder property sources in the context environment.
         initPropertySources();
 
         // Validate that all properties marked as required are resolvable:
