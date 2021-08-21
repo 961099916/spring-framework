@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2018 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.jdbc.core.support;
@@ -24,16 +21,15 @@ import org.springframework.jdbc.core.SqlTypeValue;
 import org.springframework.lang.Nullable;
 
 /**
- * Abstract implementation of the SqlTypeValue interface, for convenient
- * creation of type values that are supposed to be passed into the
- * {@code PreparedStatement.setObject} method. The {@code createTypeValue}
- * callback method has access to the underlying Connection, if that should
- * be needed to create any database-specific objects.
+ * Abstract implementation of the SqlTypeValue interface, for convenient creation of type values that are supposed to be
+ * passed into the {@code PreparedStatement.setObject} method. The {@code createTypeValue} callback method has access to
+ * the underlying Connection, if that should be needed to create any database-specific objects.
  *
- * <p>A usage example from a StoredProcedure (compare this to the plain
- * SqlTypeValue version in the superclass javadoc):
+ * <p>
+ * A usage example from a StoredProcedure (compare this to the plain SqlTypeValue version in the superclass javadoc):
  *
- * <pre class="code">proc.declareParameter(new SqlParameter("myarray", Types.ARRAY, "NUMBERS"));
+ * <pre class="code">
+ * proc.declareParameter(new SqlParameter("myarray", Types.ARRAY, "NUMBERS"));
  * ...
  *
  * Map&lt;String, Object&gt; in = new HashMap&lt;String, Object&gt;();
@@ -53,30 +49,34 @@ import org.springframework.lang.Nullable;
  */
 public abstract class AbstractSqlTypeValue implements SqlTypeValue {
 
-	@Override
-	public final void setTypeValue(PreparedStatement ps, int paramIndex, int sqlType, @Nullable String typeName)
-			throws SQLException {
+    @Override
+    public final void setTypeValue(PreparedStatement ps, int paramIndex, int sqlType, @Nullable String typeName)
+        throws SQLException {
 
-		Object value = createTypeValue(ps.getConnection(), sqlType, typeName);
-		if (sqlType == TYPE_UNKNOWN) {
-			ps.setObject(paramIndex, value);
-		}
-		else {
-			ps.setObject(paramIndex, value, sqlType);
-		}
-	}
+        Object value = createTypeValue(ps.getConnection(), sqlType, typeName);
+        if (sqlType == TYPE_UNKNOWN) {
+            ps.setObject(paramIndex, value);
+        } else {
+            ps.setObject(paramIndex, value, sqlType);
+        }
+    }
 
-	/**
-	 * Create the type value to be passed into {@code PreparedStatement.setObject}.
-	 * @param con the JDBC Connection, if needed to create any database-specific objects
-	 * @param sqlType the SQL type of the parameter we are setting
-	 * @param typeName the type name of the parameter
-	 * @return the type value
-	 * @throws SQLException if an SQLException is encountered setting
-	 * parameter values (that is, there's no need to catch SQLException)
-	 * @see java.sql.PreparedStatement#setObject(int, Object, int)
-	 */
-	protected abstract Object createTypeValue(Connection con, int sqlType, @Nullable String typeName)
-			throws SQLException;
+    /**
+     * Create the type value to be passed into {@code PreparedStatement.setObject}.
+     * 
+     * @param con
+     *            the JDBC Connection, if needed to create any database-specific objects
+     * @param sqlType
+     *            the SQL type of the parameter we are setting
+     * @param typeName
+     *            the type name of the parameter
+     * @return the type value
+     * @throws SQLException
+     *             if an SQLException is encountered setting parameter values (that is, there's no need to catch
+     *             SQLException)
+     * @see java.sql.PreparedStatement#setObject(int, Object, int)
+     */
+    protected abstract Object createTypeValue(Connection con, int sqlType, @Nullable String typeName)
+        throws SQLException;
 
 }

@@ -1,34 +1,29 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.jms.config;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageListener;
-import javax.jms.Session;
-import javax.jms.TextMessage;
+import javax.jms.*;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.jms.StubTextMessage;
@@ -42,152 +37,145 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.support.DefaultMessageHandlerMethodFactory;
 import org.springframework.util.ReflectionUtils;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-
 /**
  * @author Stephane Nicoll
  */
 public class JmsListenerContainerFactoryIntegrationTests {
 
-	private final DefaultJmsListenerContainerFactory containerFactory = new DefaultJmsListenerContainerFactory();
+    private final DefaultJmsListenerContainerFactory containerFactory = new DefaultJmsListenerContainerFactory();
 
-	private final DefaultMessageHandlerMethodFactory factory = new DefaultMessageHandlerMethodFactory();
+    private final DefaultMessageHandlerMethodFactory factory = new DefaultMessageHandlerMethodFactory();
 
-	private final JmsEndpointSampleBean sample = new JmsEndpointSampleBean();
+    private final JmsEndpointSampleBean sample = new JmsEndpointSampleBean();
 
-	private JmsEndpointSampleInterface listener = sample;
+    private JmsEndpointSampleInterface listener = sample;
 
+    @BeforeEach
+    public void setup() {
+        initializeFactory(factory);
+    }
 
-	@BeforeEach
-	public void setup() {
-		initializeFactory(factory);
-	}
+    @Test
+    public void messageConverterUsedIfSet() throws JMSException {
+        this.containerFactory.setMessageConverter(new UpperCaseMessageConverter());
+        testMessageConverterIsUsed();
+    }
 
+    @Test
+    public void messagingMessageConverterCanBeUsed() throws JMSException {
+        MessagingMessageConverter converter = new MessagingMessageConverter();
+        converter.setPayloadConverter(new UpperCaseMessageConverter());
+        this.containerFactory.setMessageConverter(converter);
+        testMessageConverterIsUsed();
+    }
 
-	@Test
-	public void messageConverterUsedIfSet() throws JMSException {
-		this.containerFactory.setMessageConverter(new UpperCaseMessageConverter());
-		testMessageConverterIsUsed();
-	}
+    private void testMessageConverterIsUsed() throws JMSException {
+        MethodJmsListenerEndpoint endpoint =
+            createDefaultMethodJmsEndpoint(this.listener.getClass(), "handleIt", String.class, String.class);
+        Message message = new StubTextMessage("foo-bar");
+        message.setStringProperty("my-header", "my-value");
 
-	@Test
-	public void messagingMessageConverterCanBeUsed() throws JMSException {
-		MessagingMessageConverter converter = new MessagingMessageConverter();
-		converter.setPayloadConverter(new UpperCaseMessageConverter());
-		this.containerFactory.setMessageConverter(converter);
-		testMessageConverterIsUsed();
-	}
+        invokeListener(endpoint, message);
+        assertListenerMethodInvocation("handleIt");
+    }
 
-	private void testMessageConverterIsUsed() throws JMSException {
-		MethodJmsListenerEndpoint endpoint = createDefaultMethodJmsEndpoint(
-				this.listener.getClass(), "handleIt", String.class, String.class);
-		Message message = new StubTextMessage("foo-bar");
-		message.setStringProperty("my-header", "my-value");
+    @Test
+    public void parameterAnnotationWithJdkProxy() throws JMSException {
+        ProxyFactory pf = new ProxyFactory(sample);
+        listener = (JmsEndpointSampleInterface)pf.getProxy();
 
-		invokeListener(endpoint, message);
-		assertListenerMethodInvocation("handleIt");
-	}
+        containerFactory.setMessageConverter(new UpperCaseMessageConverter());
 
-	@Test
-	public void parameterAnnotationWithJdkProxy() throws JMSException {
-		ProxyFactory pf = new ProxyFactory(sample);
-		listener = (JmsEndpointSampleInterface) pf.getProxy();
+        MethodJmsListenerEndpoint endpoint =
+            createDefaultMethodJmsEndpoint(JmsEndpointSampleInterface.class, "handleIt", String.class, String.class);
+        Message message = new StubTextMessage("foo-bar");
+        message.setStringProperty("my-header", "my-value");
 
-		containerFactory.setMessageConverter(new UpperCaseMessageConverter());
+        invokeListener(endpoint, message);
+        assertListenerMethodInvocation("handleIt");
+    }
 
-		MethodJmsListenerEndpoint endpoint = createDefaultMethodJmsEndpoint(
-				JmsEndpointSampleInterface.class, "handleIt", String.class, String.class);
-		Message message = new StubTextMessage("foo-bar");
-		message.setStringProperty("my-header", "my-value");
+    @Test
+    public void parameterAnnotationWithCglibProxy() throws JMSException {
+        ProxyFactory pf = new ProxyFactory(sample);
+        pf.setProxyTargetClass(true);
+        listener = (JmsEndpointSampleBean)pf.getProxy();
 
-		invokeListener(endpoint, message);
-		assertListenerMethodInvocation("handleIt");
-	}
+        containerFactory.setMessageConverter(new UpperCaseMessageConverter());
 
-	@Test
-	public void parameterAnnotationWithCglibProxy() throws JMSException {
-		ProxyFactory pf = new ProxyFactory(sample);
-		pf.setProxyTargetClass(true);
-		listener = (JmsEndpointSampleBean) pf.getProxy();
+        MethodJmsListenerEndpoint endpoint =
+            createDefaultMethodJmsEndpoint(JmsEndpointSampleBean.class, "handleIt", String.class, String.class);
+        Message message = new StubTextMessage("foo-bar");
+        message.setStringProperty("my-header", "my-value");
 
-		containerFactory.setMessageConverter(new UpperCaseMessageConverter());
+        invokeListener(endpoint, message);
+        assertListenerMethodInvocation("handleIt");
+    }
 
-		MethodJmsListenerEndpoint endpoint = createDefaultMethodJmsEndpoint(
-				JmsEndpointSampleBean.class, "handleIt", String.class, String.class);
-		Message message = new StubTextMessage("foo-bar");
-		message.setStringProperty("my-header", "my-value");
+    @SuppressWarnings("unchecked")
+    private void invokeListener(JmsListenerEndpoint endpoint, Message message) throws JMSException {
+        DefaultMessageListenerContainer messageListenerContainer = containerFactory.createListenerContainer(endpoint);
+        Object listener = messageListenerContainer.getMessageListener();
+        if (listener instanceof SessionAwareMessageListener) {
+            ((SessionAwareMessageListener<Message>)listener).onMessage(message, mock(Session.class));
+        } else {
+            ((MessageListener)listener).onMessage(message);
+        }
+    }
 
-		invokeListener(endpoint, message);
-		assertListenerMethodInvocation("handleIt");
-	}
+    private void assertListenerMethodInvocation(String methodName) {
+        assertThat((boolean)sample.invocations.get(methodName)).as("Method " + methodName + " should have been invoked")
+            .isTrue();
+    }
 
+    private MethodJmsListenerEndpoint createMethodJmsEndpoint(DefaultMessageHandlerMethodFactory factory,
+        Method method) {
+        MethodJmsListenerEndpoint endpoint = new MethodJmsListenerEndpoint();
+        endpoint.setBean(listener);
+        endpoint.setMethod(method);
+        endpoint.setMessageHandlerMethodFactory(factory);
+        return endpoint;
+    }
 
-	@SuppressWarnings("unchecked")
-	private void invokeListener(JmsListenerEndpoint endpoint, Message message) throws JMSException {
-		DefaultMessageListenerContainer messageListenerContainer = containerFactory.createListenerContainer(endpoint);
-		Object listener = messageListenerContainer.getMessageListener();
-		if (listener instanceof SessionAwareMessageListener) {
-			((SessionAwareMessageListener<Message>) listener).onMessage(message, mock(Session.class));
-		}
-		else {
-			((MessageListener) listener).onMessage(message);
-		}
-	}
+    private MethodJmsListenerEndpoint createDefaultMethodJmsEndpoint(Class<?> clazz, String methodName,
+        Class<?>... paramTypes) {
+        return createMethodJmsEndpoint(this.factory, ReflectionUtils.findMethod(clazz, methodName, paramTypes));
+    }
 
-	private void assertListenerMethodInvocation(String methodName) {
-		assertThat((boolean) sample.invocations.get(methodName)).as("Method " + methodName + " should have been invoked").isTrue();
-	}
+    private void initializeFactory(DefaultMessageHandlerMethodFactory factory) {
+        factory.setBeanFactory(new StaticListableBeanFactory());
+        factory.afterPropertiesSet();
+    }
 
-	private MethodJmsListenerEndpoint createMethodJmsEndpoint(DefaultMessageHandlerMethodFactory factory, Method method) {
-		MethodJmsListenerEndpoint endpoint = new MethodJmsListenerEndpoint();
-		endpoint.setBean(listener);
-		endpoint.setMethod(method);
-		endpoint.setMessageHandlerMethodFactory(factory);
-		return endpoint;
-	}
+    interface JmsEndpointSampleInterface {
 
-	private MethodJmsListenerEndpoint createDefaultMethodJmsEndpoint(Class<?> clazz, String methodName, Class<?>... paramTypes) {
-		return createMethodJmsEndpoint(this.factory, ReflectionUtils.findMethod(clazz, methodName, paramTypes));
-	}
+        void handleIt(@Payload String msg, @Header("my-header") String myHeader);
+    }
 
-	private void initializeFactory(DefaultMessageHandlerMethodFactory factory) {
-		factory.setBeanFactory(new StaticListableBeanFactory());
-		factory.afterPropertiesSet();
-	}
+    static class JmsEndpointSampleBean implements JmsEndpointSampleInterface {
 
+        private final Map<String, Boolean> invocations = new HashMap<>();
 
-	interface JmsEndpointSampleInterface {
+        @Override
+        public void handleIt(@Payload String msg, @Header("my-header") String myHeader) {
+            invocations.put("handleIt", true);
+            assertThat(msg).as("Unexpected payload message").isEqualTo("FOO-BAR");
+            assertThat(myHeader).as("Unexpected header value").isEqualTo("my-value");
+        }
+    }
 
-		void handleIt(@Payload String msg, @Header("my-header") String myHeader);
-	}
+    private static class UpperCaseMessageConverter implements MessageConverter {
 
+        @Override
+        public Message toMessage(Object object, Session session) throws JMSException, MessageConversionException {
+            return new StubTextMessage(object.toString().toUpperCase());
+        }
 
-	static class JmsEndpointSampleBean implements JmsEndpointSampleInterface {
-
-		private final Map<String, Boolean> invocations = new HashMap<>();
-
-		@Override
-		public void handleIt(@Payload String msg, @Header("my-header") String myHeader) {
-			invocations.put("handleIt", true);
-			assertThat(msg).as("Unexpected payload message").isEqualTo("FOO-BAR");
-			assertThat(myHeader).as("Unexpected header value").isEqualTo("my-value");
-		}
-	}
-
-
-	private static class UpperCaseMessageConverter implements MessageConverter {
-
-		@Override
-		public Message toMessage(Object object, Session session) throws JMSException, MessageConversionException {
-			return new StubTextMessage(object.toString().toUpperCase());
-		}
-
-		@Override
-		public Object fromMessage(Message message) throws JMSException, MessageConversionException {
-			String content = ((TextMessage) message).getText();
-			return content.toUpperCase();
-		}
-	}
+        @Override
+        public Object fromMessage(Message message) throws JMSException, MessageConversionException {
+            String content = ((TextMessage)message).getText();
+            return content.toUpperCase();
+        }
+    }
 
 }

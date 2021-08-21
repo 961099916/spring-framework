@@ -20,8 +20,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.Test
 import org.springframework.core.io.ClassPathResource
-import org.springframework.http.HttpHeaders.*
-import org.springframework.http.HttpMethod.*
+import org.springframework.http.HttpHeaders.ACCEPT
+import org.springframework.http.HttpHeaders.CONTENT_TYPE
+import org.springframework.http.HttpMethod.PATCH
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType.*
 import org.springframework.web.testfixture.servlet.MockHttpServletRequest
@@ -138,7 +139,7 @@ class RouterFunctionDslTests {
 		"/api".nest {
 			POST("/foo/", ::handleFromClass)
 			POST("/bar/", contentType(APPLICATION_JSON), ::handleFromClass)
-			PUT("/foo/", :: handleFromClass)
+			PUT("/foo/", ::handleFromClass)
 			PATCH("/foo/") {
 				ok().build()
 			}
@@ -158,8 +159,7 @@ class RouterFunctionDslTests {
 		resources {
 			if (it.path() == "/response.txt") {
 				ClassPathResource("/org/springframework/web/servlet/function/response.txt")
-			}
-			else {
+			} else {
 				null
 			}
 		}
@@ -193,7 +193,7 @@ class RouterFunctionDslTests {
 		after { _, response ->
 			response
 		}
-		onError({it is IllegalStateException}) { _, _ ->
+		onError({ it is IllegalStateException }) { _, _ ->
 			ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
 		}
 		onError<IllegalStateException> { _, _ ->

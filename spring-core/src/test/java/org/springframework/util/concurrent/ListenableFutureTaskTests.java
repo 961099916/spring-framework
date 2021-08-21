@@ -1,33 +1,26 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.util.concurrent;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.assertj.core.api.Assertions.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * @author Arjen Poutsma
@@ -36,97 +29,95 @@ import static org.mockito.Mockito.verifyNoInteractions;
 @SuppressWarnings("unchecked")
 class ListenableFutureTaskTests {
 
-	@Test
-	void success() throws Exception {
-		final String s = "Hello World";
-		Callable<String> callable = () -> s;
+    @Test
+    void success() throws Exception {
+        final String s = "Hello World";
+        Callable<String> callable = () -> s;
 
-		ListenableFutureTask<String> task = new ListenableFutureTask<>(callable);
-		task.addCallback(new ListenableFutureCallback<String>() {
-			@Override
-			public void onSuccess(String result) {
-				assertThat(result).isEqualTo(s);
-			}
-			@Override
-			public void onFailure(Throwable ex) {
-				throw new AssertionError(ex.getMessage(), ex);
-			}
-		});
-		task.run();
+        ListenableFutureTask<String> task = new ListenableFutureTask<>(callable);
+        task.addCallback(new ListenableFutureCallback<String>() {
+            @Override
+            public void onSuccess(String result) {
+                assertThat(result).isEqualTo(s);
+            }
 
-		assertThat(task.get()).isSameAs(s);
-		assertThat(task.completable().get()).isSameAs(s);
-		task.completable().thenAccept(v -> assertThat(v).isSameAs(s));
-	}
+            @Override
+            public void onFailure(Throwable ex) {
+                throw new AssertionError(ex.getMessage(), ex);
+            }
+        });
+        task.run();
 
-	@Test
-	void failure() throws Exception {
-		final String s = "Hello World";
-		Callable<String> callable = () -> {
-			throw new IOException(s);
-		};
+        assertThat(task.get()).isSameAs(s);
+        assertThat(task.completable().get()).isSameAs(s);
+        task.completable().thenAccept(v -> assertThat(v).isSameAs(s));
+    }
 
-		ListenableFutureTask<String> task = new ListenableFutureTask<>(callable);
-		task.addCallback(new ListenableFutureCallback<String>() {
-			@Override
-			public void onSuccess(String result) {
-				fail("onSuccess not expected");
-			}
-			@Override
-			public void onFailure(Throwable ex) {
-				assertThat(ex.getMessage()).isEqualTo(s);
-			}
-		});
-		task.run();
+    @Test
+    void failure() throws Exception {
+        final String s = "Hello World";
+        Callable<String> callable = () -> {
+            throw new IOException(s);
+        };
 
-		assertThatExceptionOfType(ExecutionException.class).isThrownBy(
-				task::get)
-			.satisfies(ex -> assertThat(ex.getCause().getMessage()).isEqualTo(s));
-		assertThatExceptionOfType(ExecutionException.class).isThrownBy(
-				task.completable()::get)
-		.satisfies(ex -> assertThat(ex.getCause().getMessage()).isEqualTo(s));
-	}
+        ListenableFutureTask<String> task = new ListenableFutureTask<>(callable);
+        task.addCallback(new ListenableFutureCallback<String>() {
+            @Override
+            public void onSuccess(String result) {
+                fail("onSuccess not expected");
+            }
 
-	@Test
-	void successWithLambdas() throws Exception {
-		final String s = "Hello World";
-		Callable<String> callable = () -> s;
+            @Override
+            public void onFailure(Throwable ex) {
+                assertThat(ex.getMessage()).isEqualTo(s);
+            }
+        });
+        task.run();
 
-		SuccessCallback<String> successCallback = mock(SuccessCallback.class);
-		FailureCallback failureCallback = mock(FailureCallback.class);
-		ListenableFutureTask<String> task = new ListenableFutureTask<>(callable);
-		task.addCallback(successCallback, failureCallback);
-		task.run();
-		verify(successCallback).onSuccess(s);
-		verifyNoInteractions(failureCallback);
+        assertThatExceptionOfType(ExecutionException.class).isThrownBy(task::get)
+            .satisfies(ex -> assertThat(ex.getCause().getMessage()).isEqualTo(s));
+        assertThatExceptionOfType(ExecutionException.class).isThrownBy(task.completable()::get)
+            .satisfies(ex -> assertThat(ex.getCause().getMessage()).isEqualTo(s));
+    }
 
-		assertThat(task.get()).isSameAs(s);
-		assertThat(task.completable().get()).isSameAs(s);
-		task.completable().thenAccept(v -> assertThat(v).isSameAs(s));
-	}
+    @Test
+    void successWithLambdas() throws Exception {
+        final String s = "Hello World";
+        Callable<String> callable = () -> s;
 
-	@Test
-	void failureWithLambdas() throws Exception {
-		final String s = "Hello World";
-		IOException ex = new IOException(s);
-		Callable<String> callable = () -> {
-			throw ex;
-		};
+        SuccessCallback<String> successCallback = mock(SuccessCallback.class);
+        FailureCallback failureCallback = mock(FailureCallback.class);
+        ListenableFutureTask<String> task = new ListenableFutureTask<>(callable);
+        task.addCallback(successCallback, failureCallback);
+        task.run();
+        verify(successCallback).onSuccess(s);
+        verifyNoInteractions(failureCallback);
 
-		SuccessCallback<String> successCallback = mock(SuccessCallback.class);
-		FailureCallback failureCallback = mock(FailureCallback.class);
-		ListenableFutureTask<String> task = new ListenableFutureTask<>(callable);
-		task.addCallback(successCallback, failureCallback);
-		task.run();
-		verify(failureCallback).onFailure(ex);
-		verifyNoInteractions(successCallback);
+        assertThat(task.get()).isSameAs(s);
+        assertThat(task.completable().get()).isSameAs(s);
+        task.completable().thenAccept(v -> assertThat(v).isSameAs(s));
+    }
 
-		assertThatExceptionOfType(ExecutionException.class).isThrownBy(
-				task::get)
-			.satisfies(e -> assertThat(e.getCause().getMessage()).isEqualTo(s));
-		assertThatExceptionOfType(ExecutionException.class).isThrownBy(
-				task.completable()::get)
-			.satisfies(e -> assertThat(e.getCause().getMessage()).isEqualTo(s));
-	}
+    @Test
+    void failureWithLambdas() throws Exception {
+        final String s = "Hello World";
+        IOException ex = new IOException(s);
+        Callable<String> callable = () -> {
+            throw ex;
+        };
+
+        SuccessCallback<String> successCallback = mock(SuccessCallback.class);
+        FailureCallback failureCallback = mock(FailureCallback.class);
+        ListenableFutureTask<String> task = new ListenableFutureTask<>(callable);
+        task.addCallback(successCallback, failureCallback);
+        task.run();
+        verify(failureCallback).onFailure(ex);
+        verifyNoInteractions(successCallback);
+
+        assertThatExceptionOfType(ExecutionException.class).isThrownBy(task::get)
+            .satisfies(e -> assertThat(e.getCause().getMessage()).isEqualTo(s));
+        assertThatExceptionOfType(ExecutionException.class).isThrownBy(task.completable()::get)
+            .satisfies(e -> assertThat(e.getCause().getMessage()).isEqualTo(s));
+    }
 
 }

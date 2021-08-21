@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2016 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.web.socket.handler;
@@ -38,172 +35,158 @@ import org.springframework.web.socket.WebSocketSession;
  */
 public class TestWebSocketSession implements WebSocketSession {
 
-	private String id;
+    private final List<WebSocketMessage<?>> messages = new ArrayList<>();
+    private String id;
+    private URI uri;
+    private Map<String, Object> attributes = new HashMap<>();
+    private Principal principal;
+    private InetSocketAddress localAddress;
+    private InetSocketAddress remoteAddress;
+    private String protocol;
+    private List<WebSocketExtension> extensions = new ArrayList<>();
+    private boolean open;
+    private CloseStatus status;
 
-	private URI uri;
+    private HttpHeaders headers;
 
-	private Map<String, Object> attributes = new HashMap<>();
+    public TestWebSocketSession() {}
 
-	private Principal principal;
+    public TestWebSocketSession(String id) {
+        this.id = id;
+    }
 
-	private InetSocketAddress localAddress;
+    @Override
+    public String getId() {
+        return this.id;
+    }
 
-	private InetSocketAddress remoteAddress;
+    public void setId(String id) {
+        this.id = id;
+    }
 
-	private String protocol;
+    @Override
+    public URI getUri() {
+        return this.uri;
+    }
 
-	private List<WebSocketExtension> extensions = new ArrayList<>();
+    public void setUri(URI uri) {
+        this.uri = uri;
+    }
 
-	private boolean open;
+    @Override
+    public HttpHeaders getHandshakeHeaders() {
+        return this.headers;
+    }
 
-	private final List<WebSocketMessage<?>> messages = new ArrayList<>();
+    public HttpHeaders getHeaders() {
+        return this.headers;
+    }
 
-	private CloseStatus status;
+    public void setHeaders(HttpHeaders headers) {
+        this.headers = headers;
+    }
 
-	private HttpHeaders headers;
+    @Override
+    public Map<String, Object> getAttributes() {
+        return this.attributes;
+    }
 
-	public TestWebSocketSession() {
-	}
+    public void setAttributes(Map<String, Object> attributes) {
+        this.attributes = attributes;
+    }
 
-	public TestWebSocketSession(String id) {
-		this.id = id;
-	}
+    @Override
+    public Principal getPrincipal() {
+        return this.principal;
+    }
 
-	@Override
-	public String getId() {
-		return this.id;
-	}
+    public void setPrincipal(Principal principal) {
+        this.principal = principal;
+    }
 
-	public void setId(String id) {
-		this.id = id;
-	}
+    @Override
+    public InetSocketAddress getLocalAddress() {
+        return this.localAddress;
+    }
 
-	@Override
-	public URI getUri() {
-		return this.uri;
-	}
+    public void setLocalAddress(InetSocketAddress localAddress) {
+        this.localAddress = localAddress;
+    }
 
-	public void setUri(URI uri) {
-		this.uri = uri;
-	}
+    @Override
+    public InetSocketAddress getRemoteAddress() {
+        return this.remoteAddress;
+    }
 
+    public void setRemoteAddress(InetSocketAddress remoteAddress) {
+        this.remoteAddress = remoteAddress;
+    }
 
-	@Override
-	public HttpHeaders getHandshakeHeaders() {
-		return this.headers;
-	}
+    @Override
+    public String getAcceptedProtocol() {
+        return this.protocol;
+    }
 
-	public HttpHeaders getHeaders() {
-		return this.headers;
-	}
+    public void setAcceptedProtocol(String protocol) {
+        this.protocol = protocol;
+    }
 
-	public void setHeaders(HttpHeaders headers) {
-		this.headers = headers;
-	}
+    @Override
+    public int getTextMessageSizeLimit() {
+        return 0;
+    }
 
-	public void setAttributes(Map<String, Object> attributes) {
-		this.attributes = attributes;
-	}
+    @Override
+    public void setTextMessageSizeLimit(int messageSizeLimit) {}
 
-	@Override
-	public Map<String, Object> getAttributes() {
-		return this.attributes;
-	}
+    @Override
+    public int getBinaryMessageSizeLimit() {
+        return 0;
+    }
 
-	@Override
-	public Principal getPrincipal() {
-		return this.principal;
-	}
+    @Override
+    public void setBinaryMessageSizeLimit(int messageSizeLimit) {}
 
-	public void setPrincipal(Principal principal) {
-		this.principal = principal;
-	}
+    @Override
+    public List<WebSocketExtension> getExtensions() {
+        return this.extensions;
+    }
 
-	@Override
-	public InetSocketAddress getLocalAddress() {
-		return this.localAddress;
-	}
+    public void setExtensions(List<WebSocketExtension> extensions) {
+        this.extensions = extensions;
+    }
 
-	public void setLocalAddress(InetSocketAddress localAddress) {
-		this.localAddress = localAddress;
-	}
+    @Override
+    public boolean isOpen() {
+        return this.open;
+    }
 
-	@Override
-	public InetSocketAddress getRemoteAddress() {
-		return this.remoteAddress;
-	}
+    public void setOpen(boolean open) {
+        this.open = open;
+    }
 
-	public void setRemoteAddress(InetSocketAddress remoteAddress) {
-		this.remoteAddress = remoteAddress;
-	}
+    public List<WebSocketMessage<?>> getSentMessages() {
+        return this.messages;
+    }
 
-	@Override
-	public String getAcceptedProtocol() {
-		return this.protocol;
-	}
+    public CloseStatus getCloseStatus() {
+        return this.status;
+    }
 
-	public void setAcceptedProtocol(String protocol) {
-		this.protocol = protocol;
-	}
+    @Override
+    public void sendMessage(WebSocketMessage<?> message) throws IOException {
+        this.messages.add(message);
+    }
 
-	@Override
-	public void setTextMessageSizeLimit(int messageSizeLimit) {
-	}
+    @Override
+    public void close() throws IOException {
+        this.open = false;
+    }
 
-	@Override
-	public int getTextMessageSizeLimit() {
-		return 0;
-	}
-
-	@Override
-	public void setBinaryMessageSizeLimit(int messageSizeLimit) {
-	}
-
-	@Override
-	public int getBinaryMessageSizeLimit() {
-		return 0;
-	}
-
-	@Override
-	public List<WebSocketExtension> getExtensions() {
-		return this.extensions;
-	}
-
-	public void setExtensions(List<WebSocketExtension> extensions) {
-		this.extensions = extensions;
-	}
-
-	@Override
-	public boolean isOpen() {
-		return this.open;
-	}
-
-	public void setOpen(boolean open) {
-		this.open = open;
-	}
-
-	public List<WebSocketMessage<?>> getSentMessages() {
-		return this.messages;
-	}
-
-	public CloseStatus getCloseStatus() {
-		return this.status;
-	}
-
-	@Override
-	public void sendMessage(WebSocketMessage<?> message) throws IOException {
-		this.messages.add(message);
-	}
-
-	@Override
-	public void close() throws IOException {
-		this.open = false;
-	}
-
-	@Override
-	public void close(CloseStatus status) throws IOException {
-		this.open = false;
-		this.status = status;
-	}
+    @Override
+    public void close(CloseStatus status) throws IOException {
+        this.open = false;
+        this.status = status;
+    }
 
 }

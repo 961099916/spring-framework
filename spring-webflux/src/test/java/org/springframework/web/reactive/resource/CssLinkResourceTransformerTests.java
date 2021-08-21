@@ -1,20 +1,20 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.web.reactive.resource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.web.testfixture.http.server.reactive.MockServerHttpRequest.get;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -25,8 +25,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
-import reactor.test.StepVerifier;
-
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.util.StringUtils;
@@ -34,8 +32,7 @@ import org.springframework.web.reactive.resource.EncodedResourceResolver.Encoded
 import org.springframework.web.reactive.resource.GzipSupport.GzippedFiles;
 import org.springframework.web.testfixture.server.MockServerWebExchange;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.web.testfixture.http.server.reactive.MockServerHttpRequest.get;
+import reactor.test.StepVerifier;
 
 /**
  * Unit tests for {@link CssLinkResourceTransformer}.
@@ -46,145 +43,125 @@ import static org.springframework.web.testfixture.http.server.reactive.MockServe
 @ExtendWith(GzipSupport.class)
 public class CssLinkResourceTransformerTests {
 
-	private ResourceTransformerChain transformerChain;
+    private ResourceTransformerChain transformerChain;
 
+    @BeforeEach
+    public void setup() {
+        VersionResourceResolver versionResolver = new VersionResourceResolver();
+        versionResolver.setStrategyMap(Collections.singletonMap("/**", new ContentVersionStrategy()));
+        List<ResourceResolver> resolvers = new ArrayList<>();
+        resolvers.add(versionResolver);
+        resolvers.add(new PathResourceResolver());
 
-	@BeforeEach
-	public void setup() {
-		VersionResourceResolver versionResolver = new VersionResourceResolver();
-		versionResolver.setStrategyMap(Collections.singletonMap("/**", new ContentVersionStrategy()));
-		List<ResourceResolver> resolvers = new ArrayList<>();
-		resolvers.add(versionResolver);
-		resolvers.add(new PathResourceResolver());
+        CssLinkResourceTransformer cssLinkTransformer = new CssLinkResourceTransformer();
+        cssLinkTransformer.setResourceUrlProvider(createUrlProvider(resolvers));
 
-		CssLinkResourceTransformer cssLinkTransformer = new CssLinkResourceTransformer();
-		cssLinkTransformer.setResourceUrlProvider(createUrlProvider(resolvers));
+        this.transformerChain = new DefaultResourceTransformerChain(new DefaultResourceResolverChain(resolvers),
+            Collections.singletonList(cssLinkTransformer));
+    }
 
-		this.transformerChain = new DefaultResourceTransformerChain(
-				new DefaultResourceResolverChain(resolvers), Collections.singletonList(cssLinkTransformer));
-	}
+    private ResourceUrlProvider createUrlProvider(List<ResourceResolver> resolvers) {
+        ResourceWebHandler handler = new ResourceWebHandler();
+        handler.setLocations(Collections.singletonList(new ClassPathResource("test/", getClass())));
+        handler.setResourceResolvers(resolvers);
 
-	private ResourceUrlProvider createUrlProvider(List<ResourceResolver> resolvers) {
-		ResourceWebHandler handler = new ResourceWebHandler();
-		handler.setLocations(Collections.singletonList(new ClassPathResource("test/", getClass())));
-		handler.setResourceResolvers(resolvers);
+        ResourceUrlProvider urlProvider = new ResourceUrlProvider();
+        urlProvider.registerHandlers(Collections.singletonMap("/static/**", handler));
+        return urlProvider;
+    }
 
-		ResourceUrlProvider urlProvider = new ResourceUrlProvider();
-		urlProvider.registerHandlers(Collections.singletonMap("/static/**", handler));
-		return urlProvider;
-	}
+    @Test
+    public void transform() {
 
+        MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/main.css"));
+        Resource css = getResource("main.css");
+        String expected = "\n" + "@import url(\"/static/bar-11e16cf79faee7ac698c805cf28248d2.css?#iefix\");\n"
+            + "@import url('/static/bar-11e16cf79faee7ac698c805cf28248d2.css#bla-normal');\n"
+            + "@import url(/static/bar-11e16cf79faee7ac698c805cf28248d2.css);\n\n"
+            + "@import \"/static/foo-e36d2e05253c6c7085a91522ce43a0b4.css\";\n"
+            + "@import '/static/foo-e36d2e05253c6c7085a91522ce43a0b4.css';\n\n"
+            + "body { background: url(\"/static/images/image-f448cd1d5dba82b774f3202c878230b3.png?#iefix\") }\n";
 
-	@Test
-	public void transform() {
+        StepVerifier.create(this.transformerChain.transform(exchange, css).cast(TransformedResource.class))
+            .consumeNextWith(transformedResource -> {
+                String result = new String(transformedResource.getByteArray(), StandardCharsets.UTF_8);
+                result = StringUtils.deleteAny(result, "\r");
+                assertThat(result).isEqualTo(expected);
+            }).expectComplete().verify();
+    }
 
-		MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/main.css"));
-		Resource css = getResource("main.css");
-		String expected = "\n" +
-				"@import url(\"/static/bar-11e16cf79faee7ac698c805cf28248d2.css?#iefix\");\n" +
-				"@import url('/static/bar-11e16cf79faee7ac698c805cf28248d2.css#bla-normal');\n" +
-				"@import url(/static/bar-11e16cf79faee7ac698c805cf28248d2.css);\n\n" +
-				"@import \"/static/foo-e36d2e05253c6c7085a91522ce43a0b4.css\";\n" +
-				"@import '/static/foo-e36d2e05253c6c7085a91522ce43a0b4.css';\n\n" +
-				"body { background: url(\"/static/images/image-f448cd1d5dba82b774f3202c878230b3.png?#iefix\") }\n";
+    @Test
+    public void transformNoLinks() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/foo.css"));
+        Resource expected = getResource("foo.css");
 
-		StepVerifier.create(this.transformerChain.transform(exchange, css)
-				.cast(TransformedResource.class))
-				.consumeNextWith(transformedResource -> {
-					String result = new String(transformedResource.getByteArray(), StandardCharsets.UTF_8);
-					result = StringUtils.deleteAny(result, "\r");
-					assertThat(result).isEqualTo(expected);
-				})
-				.expectComplete()
-				.verify();
-	}
+        StepVerifier.create(this.transformerChain.transform(exchange, expected))
+            .consumeNextWith(resource -> assertThat(resource).isSameAs(expected)).expectComplete().verify();
+    }
 
-	@Test
-	public void transformNoLinks() {
-		MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/foo.css"));
-		Resource expected = getResource("foo.css");
+    @Test
+    public void transformExtLinksNotAllowed() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/external.css"));
 
-		StepVerifier.create(this.transformerChain.transform(exchange, expected))
-				.consumeNextWith(resource -> assertThat(resource).isSameAs(expected))
-				.expectComplete().verify();
-	}
+        List<ResourceTransformer> transformers = Collections.singletonList(new CssLinkResourceTransformer());
+        ResourceResolverChain mockChain = Mockito.mock(DefaultResourceResolverChain.class);
+        ResourceTransformerChain chain = new DefaultResourceTransformerChain(mockChain, transformers);
 
-	@Test
-	public void transformExtLinksNotAllowed() {
-		MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/external.css"));
+        Resource resource = getResource("external.css");
+        String expected = "@import url(\"https://example.org/fonts/css\");\n"
+            + "body { background: url(\"file:///home/spring/image.png\") }\n"
+            + "figure { background: url(\"//example.org/style.css\")}";
 
-		List<ResourceTransformer> transformers = Collections.singletonList(new CssLinkResourceTransformer());
-		ResourceResolverChain mockChain = Mockito.mock(DefaultResourceResolverChain.class);
-		ResourceTransformerChain chain = new DefaultResourceTransformerChain(mockChain, transformers);
+        StepVerifier.create(chain.transform(exchange, resource).cast(TransformedResource.class))
+            .consumeNextWith(transformedResource -> {
+                String result = new String(transformedResource.getByteArray(), StandardCharsets.UTF_8);
+                result = StringUtils.deleteAny(result, "\r");
+                assertThat(result).isEqualTo(expected);
+            }).expectComplete().verify();
 
-		Resource resource = getResource("external.css");
-		String expected = "@import url(\"https://example.org/fonts/css\");\n" +
-				"body { background: url(\"file:///home/spring/image.png\") }\n" +
-				"figure { background: url(\"//example.org/style.css\")}";
+        List<Resource> locations = Collections.singletonList(resource);
+        Mockito.verify(mockChain, Mockito.never()).resolveUrlPath("https://example.org/fonts/css", locations);
+        Mockito.verify(mockChain, Mockito.never()).resolveUrlPath("file:///home/spring/image.png", locations);
+        Mockito.verify(mockChain, Mockito.never()).resolveUrlPath("//example.org/style.css", locations);
+    }
 
-		StepVerifier.create(chain.transform(exchange, resource)
-				.cast(TransformedResource.class))
-				.consumeNextWith(transformedResource -> {
-					String result = new String(transformedResource.getByteArray(), StandardCharsets.UTF_8);
-					result = StringUtils.deleteAny(result, "\r");
-					assertThat(result).isEqualTo(expected);
-				})
-				.expectComplete()
-				.verify();
+    @Test
+    public void transformSkippedForNonCssResource() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/images/image.png"));
+        Resource expected = getResource("images/image.png");
 
-		List<Resource> locations = Collections.singletonList(resource);
-		Mockito.verify(mockChain, Mockito.never()).resolveUrlPath("https://example.org/fonts/css", locations);
-		Mockito.verify(mockChain, Mockito.never()).resolveUrlPath("file:///home/spring/image.png", locations);
-		Mockito.verify(mockChain, Mockito.never()).resolveUrlPath("//example.org/style.css", locations);
-	}
+        StepVerifier.create(this.transformerChain.transform(exchange, expected)).expectNext(expected).expectComplete()
+            .verify();
+    }
 
-	@Test
-	public void transformSkippedForNonCssResource() {
-		MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/images/image.png"));
-		Resource expected = getResource("images/image.png");
+    @Test
+    public void transformSkippedForGzippedResource(GzippedFiles gzippedFiles) throws Exception {
+        gzippedFiles.create("main.css");
 
-		StepVerifier.create(this.transformerChain.transform(exchange, expected))
-				.expectNext(expected)
-				.expectComplete()
-				.verify();
-	}
+        MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/main.css"));
+        Resource resource = getResource("main.css");
+        EncodedResource gzipped = new EncodedResource(resource, "gzip", ".gz");
 
-	@Test
-	public void transformSkippedForGzippedResource(GzippedFiles gzippedFiles) throws Exception {
-		gzippedFiles.create("main.css");
+        StepVerifier.create(this.transformerChain.transform(exchange, gzipped)).expectNext(gzipped).expectComplete()
+            .verify();
+    }
 
-		MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/main.css"));
-		Resource resource = getResource("main.css");
-		EncodedResource gzipped = new EncodedResource(resource, "gzip", ".gz");
+    @Test // https://github.com/spring-projects/spring-framework/issues/22602
+    public void transformEmptyUrlFunction() throws Exception {
+        MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/empty_url_function.css"));
+        Resource css = getResource("empty_url_function.css");
+        String expected = ".fooStyle {\n" + "\tbackground: transparent url() no-repeat left top;\n" + "}";
 
-		StepVerifier.create(this.transformerChain.transform(exchange, gzipped))
-				.expectNext(gzipped)
-				.expectComplete()
-				.verify();
-	}
+        StepVerifier.create(this.transformerChain.transform(exchange, css).cast(TransformedResource.class))
+            .consumeNextWith(transformedResource -> {
+                String result = new String(transformedResource.getByteArray(), StandardCharsets.UTF_8);
+                result = StringUtils.deleteAny(result, "\r");
+                assertThat(result).isEqualTo(expected);
+            }).expectComplete().verify();
+    }
 
-	@Test // https://github.com/spring-projects/spring-framework/issues/22602
-	public void transformEmptyUrlFunction() throws Exception {
-		MockServerWebExchange exchange = MockServerWebExchange.from(get("/static/empty_url_function.css"));
-		Resource css = getResource("empty_url_function.css");
-		String expected =
-				".fooStyle {\n" +
-				"\tbackground: transparent url() no-repeat left top;\n" +
-				"}";
-
-		StepVerifier.create(this.transformerChain.transform(exchange, css)
-				.cast(TransformedResource.class))
-				.consumeNextWith(transformedResource -> {
-					String result = new String(transformedResource.getByteArray(), StandardCharsets.UTF_8);
-					result = StringUtils.deleteAny(result, "\r");
-					assertThat(result).isEqualTo(expected);
-				})
-				.expectComplete()
-				.verify();
-	}
-
-	private Resource getResource(String filePath) {
-		return new ClassPathResource("test/" + filePath, getClass());
-	}
+    private Resource getResource(String filePath) {
+        return new ClassPathResource("test/" + filePath, getClass());
+    }
 
 }

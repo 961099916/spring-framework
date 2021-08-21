@@ -6,13 +6,13 @@
 // modification, are permitted provided that the following conditions
 // are met:
 // 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
+// notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the copyright holders nor the names of its
-//    contributors may be used to endorse or promote products derived from
-//    this software without specific prior written permission.
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -28,44 +28,45 @@
 package org.springframework.asm;
 
 /**
- * Exception thrown when the constant pool of a class produced by a {@link ClassWriter} is too
- * large.
+ * Exception thrown when the constant pool of a class produced by a {@link ClassWriter} is too large.
  *
  * @author Jason Zaugg
  */
 public final class ClassTooLargeException extends IndexOutOfBoundsException {
-  private static final long serialVersionUID = 160715609518896765L;
+    private static final long serialVersionUID = 160715609518896765L;
 
-  private final String className;
-  private final int constantPoolCount;
+    private final String className;
+    private final int constantPoolCount;
 
-  /**
-   * Constructs a new {@link ClassTooLargeException}.
-   *
-   * @param className the internal name of the class.
-   * @param constantPoolCount the number of constant pool items of the class.
-   */
-  public ClassTooLargeException(final String className, final int constantPoolCount) {
-    super("Class too large: " + className);
-    this.className = className;
-    this.constantPoolCount = constantPoolCount;
-  }
+    /**
+     * Constructs a new {@link ClassTooLargeException}.
+     *
+     * @param className
+     *            the internal name of the class.
+     * @param constantPoolCount
+     *            the number of constant pool items of the class.
+     */
+    public ClassTooLargeException(final String className, final int constantPoolCount) {
+        super("Class too large: " + className);
+        this.className = className;
+        this.constantPoolCount = constantPoolCount;
+    }
 
-  /**
-   * Returns the internal name of the class.
-   *
-   * @return the internal name of the class.
-   */
-  public String getClassName() {
-    return className;
-  }
+    /**
+     * Returns the internal name of the class.
+     *
+     * @return the internal name of the class.
+     */
+    public String getClassName() {
+        return className;
+    }
 
-  /**
-   * Returns the number of constant pool items of the class.
-   *
-   * @return the number of constant pool items of the class.
-   */
-  public int getConstantPoolCount() {
-    return constantPoolCount;
-  }
+    /**
+     * Returns the number of constant pool items of the class.
+     *
+     * @return the number of constant pool items of the class.
+     */
+    public int getConstantPoolCount() {
+        return constantPoolCount;
+    }
 }

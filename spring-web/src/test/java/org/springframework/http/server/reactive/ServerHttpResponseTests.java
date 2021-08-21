@@ -1,20 +1,19 @@
 /*
  * Copyright 2002-2020 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.http.server.reactive;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -27,11 +26,6 @@ import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.netty.channel.AbortedException;
-import reactor.test.StepVerifier;
-
 import org.springframework.core.ResolvableType;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DefaultDataBuffer;
@@ -46,7 +40,10 @@ import org.springframework.http.codec.json.Jackson2JsonEncoder;
 import org.springframework.web.testfixture.http.server.reactive.MockServerHttpRequest;
 import org.springframework.web.testfixture.http.server.reactive.MockServerHttpResponse;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.netty.channel.AbortedException;
+import reactor.test.StepVerifier;
 
 /**
  * Unit tests for {@link AbstractServerHttpRequest}.
@@ -57,214 +54,207 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class ServerHttpResponseTests {
 
-	@Test
-	void writeWith() {
-		TestServerHttpResponse response = new TestServerHttpResponse();
-		response.writeWith(Flux.just(wrap("a"), wrap("b"), wrap("c"))).block();
+    @Test
+    void writeWith() {
+        TestServerHttpResponse response = new TestServerHttpResponse();
+        response.writeWith(Flux.just(wrap("a"), wrap("b"), wrap("c"))).block();
 
-		assertThat(response.statusCodeWritten).isTrue();
-		assertThat(response.headersWritten).isTrue();
-		assertThat(response.cookiesWritten).isTrue();
+        assertThat(response.statusCodeWritten).isTrue();
+        assertThat(response.headersWritten).isTrue();
+        assertThat(response.cookiesWritten).isTrue();
 
-		assertThat(response.body.size()).isEqualTo(3);
-		assertThat(new String(response.body.get(0).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("a");
-		assertThat(new String(response.body.get(1).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("b");
-		assertThat(new String(response.body.get(2).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("c");
-	}
+        assertThat(response.body.size()).isEqualTo(3);
+        assertThat(new String(response.body.get(0).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("a");
+        assertThat(new String(response.body.get(1).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("b");
+        assertThat(new String(response.body.get(2).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("c");
+    }
 
-	@Test  // SPR-14952
-	void writeAndFlushWithFluxOfDefaultDataBuffer() {
-		TestServerHttpResponse response = new TestServerHttpResponse();
-		Flux<Flux<DefaultDataBuffer>> flux = Flux.just(Flux.just(wrap("foo")));
-		response.writeAndFlushWith(flux).block();
+    @Test // SPR-14952
+    void writeAndFlushWithFluxOfDefaultDataBuffer() {
+        TestServerHttpResponse response = new TestServerHttpResponse();
+        Flux<Flux<DefaultDataBuffer>> flux = Flux.just(Flux.just(wrap("foo")));
+        response.writeAndFlushWith(flux).block();
 
-		assertThat(response.statusCodeWritten).isTrue();
-		assertThat(response.headersWritten).isTrue();
-		assertThat(response.cookiesWritten).isTrue();
+        assertThat(response.statusCodeWritten).isTrue();
+        assertThat(response.headersWritten).isTrue();
+        assertThat(response.cookiesWritten).isTrue();
 
-		assertThat(response.body.size()).isEqualTo(1);
-		assertThat(new String(response.body.get(0).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("foo");
-	}
+        assertThat(response.body.size()).isEqualTo(1);
+        assertThat(new String(response.body.get(0).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("foo");
+    }
 
-	@Test
-	void writeWithFluxError() {
-		IllegalStateException error = new IllegalStateException("boo");
-		writeWithError(Flux.error(error));
-	}
+    @Test
+    void writeWithFluxError() {
+        IllegalStateException error = new IllegalStateException("boo");
+        writeWithError(Flux.error(error));
+    }
 
-	@Test
-	void writeWithMonoError() {
-		IllegalStateException error = new IllegalStateException("boo");
-		writeWithError(Mono.error(error));
-	}
+    @Test
+    void writeWithMonoError() {
+        IllegalStateException error = new IllegalStateException("boo");
+        writeWithError(Mono.error(error));
+    }
 
-	void writeWithError(Publisher<DataBuffer> body) {
-		TestServerHttpResponse response = new TestServerHttpResponse();
-		HttpHeaders headers = response.getHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		headers.set(HttpHeaders.CONTENT_ENCODING, "gzip");
-		headers.setContentLength(12);
-		response.writeWith(body).onErrorResume(ex -> Mono.empty()).block();
+    void writeWithError(Publisher<DataBuffer> body) {
+        TestServerHttpResponse response = new TestServerHttpResponse();
+        HttpHeaders headers = response.getHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set(HttpHeaders.CONTENT_ENCODING, "gzip");
+        headers.setContentLength(12);
+        response.writeWith(body).onErrorResume(ex -> Mono.empty()).block();
 
-		assertThat(response.statusCodeWritten).isFalse();
-		assertThat(response.headersWritten).isFalse();
-		assertThat(response.cookiesWritten).isFalse();
-		assertThat(headers).doesNotContainKeys(HttpHeaders.CONTENT_TYPE, HttpHeaders.CONTENT_LENGTH,
-				HttpHeaders.CONTENT_ENCODING);
-		assertThat(response.body.isEmpty()).isTrue();
-	}
+        assertThat(response.statusCodeWritten).isFalse();
+        assertThat(response.headersWritten).isFalse();
+        assertThat(response.cookiesWritten).isFalse();
+        assertThat(headers).doesNotContainKeys(HttpHeaders.CONTENT_TYPE, HttpHeaders.CONTENT_LENGTH,
+            HttpHeaders.CONTENT_ENCODING);
+        assertThat(response.body.isEmpty()).isTrue();
+    }
 
-	@Test
-	void setComplete() {
-		TestServerHttpResponse response = new TestServerHttpResponse();
-		response.setComplete().block();
+    @Test
+    void setComplete() {
+        TestServerHttpResponse response = new TestServerHttpResponse();
+        response.setComplete().block();
 
-		assertThat(response.statusCodeWritten).isTrue();
-		assertThat(response.headersWritten).isTrue();
-		assertThat(response.cookiesWritten).isTrue();
-		assertThat(response.body.isEmpty()).isTrue();
-	}
+        assertThat(response.statusCodeWritten).isTrue();
+        assertThat(response.headersWritten).isTrue();
+        assertThat(response.cookiesWritten).isTrue();
+        assertThat(response.body.isEmpty()).isTrue();
+    }
 
-	@Test
-	void beforeCommitWithComplete() {
-		ResponseCookie cookie = ResponseCookie.from("ID", "123").build();
-		TestServerHttpResponse response = new TestServerHttpResponse();
-		response.beforeCommit(() -> Mono.fromRunnable(() -> response.getCookies().add(cookie.getName(), cookie)));
-		response.writeWith(Flux.just(wrap("a"), wrap("b"), wrap("c"))).block();
+    @Test
+    void beforeCommitWithComplete() {
+        ResponseCookie cookie = ResponseCookie.from("ID", "123").build();
+        TestServerHttpResponse response = new TestServerHttpResponse();
+        response.beforeCommit(() -> Mono.fromRunnable(() -> response.getCookies().add(cookie.getName(), cookie)));
+        response.writeWith(Flux.just(wrap("a"), wrap("b"), wrap("c"))).block();
 
-		assertThat(response.statusCodeWritten).isTrue();
-		assertThat(response.headersWritten).isTrue();
-		assertThat(response.cookiesWritten).isTrue();
-		assertThat(response.getCookies().getFirst("ID")).isSameAs(cookie);
+        assertThat(response.statusCodeWritten).isTrue();
+        assertThat(response.headersWritten).isTrue();
+        assertThat(response.cookiesWritten).isTrue();
+        assertThat(response.getCookies().getFirst("ID")).isSameAs(cookie);
 
-		assertThat(response.body.size()).isEqualTo(3);
-		assertThat(new String(response.body.get(0).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("a");
-		assertThat(new String(response.body.get(1).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("b");
-		assertThat(new String(response.body.get(2).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("c");
-	}
+        assertThat(response.body.size()).isEqualTo(3);
+        assertThat(new String(response.body.get(0).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("a");
+        assertThat(new String(response.body.get(1).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("b");
+        assertThat(new String(response.body.get(2).asByteBuffer().array(), StandardCharsets.UTF_8)).isEqualTo("c");
+    }
 
-	@Test
-	void beforeCommitActionWithSetComplete() {
-		ResponseCookie cookie = ResponseCookie.from("ID", "123").build();
-		TestServerHttpResponse response = new TestServerHttpResponse();
-		response.beforeCommit(() -> {
-			response.getCookies().add(cookie.getName(), cookie);
-			return Mono.empty();
-		});
-		response.setComplete().block();
+    @Test
+    void beforeCommitActionWithSetComplete() {
+        ResponseCookie cookie = ResponseCookie.from("ID", "123").build();
+        TestServerHttpResponse response = new TestServerHttpResponse();
+        response.beforeCommit(() -> {
+            response.getCookies().add(cookie.getName(), cookie);
+            return Mono.empty();
+        });
+        response.setComplete().block();
 
-		assertThat(response.statusCodeWritten).isTrue();
-		assertThat(response.headersWritten).isTrue();
-		assertThat(response.cookiesWritten).isTrue();
-		assertThat(response.body.isEmpty()).isTrue();
-		assertThat(response.getCookies().getFirst("ID")).isSameAs(cookie);
-	}
+        assertThat(response.statusCodeWritten).isTrue();
+        assertThat(response.headersWritten).isTrue();
+        assertThat(response.cookiesWritten).isTrue();
+        assertThat(response.body.isEmpty()).isTrue();
+        assertThat(response.getCookies().getFirst("ID")).isSameAs(cookie);
+    }
 
-	@Test // gh-24186
-	void beforeCommitErrorShouldLeaveResponseNotCommitted() {
+    @Test // gh-24186
+    void beforeCommitErrorShouldLeaveResponseNotCommitted() {
 
-		Consumer<Supplier<Mono<Void>>> tester = preCommitAction -> {
-			TestServerHttpResponse response = new TestServerHttpResponse();
-			response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-			response.getHeaders().setContentLength(3);
-			response.beforeCommit(preCommitAction);
+        Consumer<Supplier<Mono<Void>>> tester = preCommitAction -> {
+            TestServerHttpResponse response = new TestServerHttpResponse();
+            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+            response.getHeaders().setContentLength(3);
+            response.beforeCommit(preCommitAction);
 
-			StepVerifier.create(response.writeWith(Flux.just(wrap("body"))))
-					.expectErrorMessage("Max sessions")
-					.verify();
+            StepVerifier.create(response.writeWith(Flux.just(wrap("body")))).expectErrorMessage("Max sessions")
+                .verify();
 
-			assertThat(response.statusCodeWritten).isFalse();
-			assertThat(response.headersWritten).isFalse();
-			assertThat(response.cookiesWritten).isFalse();
-			assertThat(response.isCommitted()).isFalse();
-			assertThat(response.getHeaders()).isEmpty();
-		};
+            assertThat(response.statusCodeWritten).isFalse();
+            assertThat(response.headersWritten).isFalse();
+            assertThat(response.cookiesWritten).isFalse();
+            assertThat(response.isCommitted()).isFalse();
+            assertThat(response.getHeaders()).isEmpty();
+        };
 
-		tester.accept(() -> Mono.error(new IllegalStateException("Max sessions")));
-		tester.accept(() -> {
-			throw new IllegalStateException("Max sessions");
-		});
-	}
+        tester.accept(() -> Mono.error(new IllegalStateException("Max sessions")));
+        tester.accept(() -> {
+            throw new IllegalStateException("Max sessions");
+        });
+    }
 
-	@Test // gh-26232
-	void monoResponseShouldNotLeakIfCancelled() {
-		LeakAwareDataBufferFactory bufferFactory = new LeakAwareDataBufferFactory();
-		MockServerHttpRequest request = MockServerHttpRequest.get("/").build();
-		MockServerHttpResponse response = new MockServerHttpResponse(bufferFactory);
-		response.setWriteHandler(flux -> {
-			throw AbortedException.beforeSend();
-		});
+    @Test // gh-26232
+    void monoResponseShouldNotLeakIfCancelled() {
+        LeakAwareDataBufferFactory bufferFactory = new LeakAwareDataBufferFactory();
+        MockServerHttpRequest request = MockServerHttpRequest.get("/").build();
+        MockServerHttpResponse response = new MockServerHttpResponse(bufferFactory);
+        response.setWriteHandler(flux -> {
+            throw AbortedException.beforeSend();
+        });
 
-		HttpMessageWriter<Object> messageWriter = new EncoderHttpMessageWriter<>(new Jackson2JsonEncoder());
-		Mono<Void> result = messageWriter.write(Mono.just(Collections.singletonMap("foo", "bar")),
-				ResolvableType.forClass(Mono.class), ResolvableType.forClass(Map.class), null,
-				request, response, Collections.emptyMap());
+        HttpMessageWriter<Object> messageWriter = new EncoderHttpMessageWriter<>(new Jackson2JsonEncoder());
+        Mono<Void> result =
+            messageWriter.write(Mono.just(Collections.singletonMap("foo", "bar")), ResolvableType.forClass(Mono.class),
+                ResolvableType.forClass(Map.class), null, request, response, Collections.emptyMap());
 
-		StepVerifier.create(result).expectError(AbortedException.class).verify();
+        StepVerifier.create(result).expectError(AbortedException.class).verify();
 
-		bufferFactory.checkForLeaks();
-	}
+        bufferFactory.checkForLeaks();
+    }
 
-	private DefaultDataBuffer wrap(String a) {
-		return new DefaultDataBufferFactory().wrap(ByteBuffer.wrap(a.getBytes(StandardCharsets.UTF_8)));
-	}
+    private DefaultDataBuffer wrap(String a) {
+        return new DefaultDataBufferFactory().wrap(ByteBuffer.wrap(a.getBytes(StandardCharsets.UTF_8)));
+    }
 
+    private static class TestServerHttpResponse extends AbstractServerHttpResponse {
 
-	private static class TestServerHttpResponse extends AbstractServerHttpResponse {
+        private final List<DataBuffer> body = new ArrayList<>();
+        private boolean statusCodeWritten;
+        private boolean headersWritten;
+        private boolean cookiesWritten;
 
-		private boolean statusCodeWritten;
+        public TestServerHttpResponse() {
+            super(new DefaultDataBufferFactory());
+        }
 
-		private boolean headersWritten;
+        @Override
+        public <T> T getNativeResponse() {
+            throw new IllegalStateException("This is a mock. No running server, no native response.");
+        }
 
-		private boolean cookiesWritten;
+        @Override
+        public void applyStatusCode() {
+            assertThat(this.statusCodeWritten).isFalse();
+            this.statusCodeWritten = true;
+        }
 
-		private final List<DataBuffer> body = new ArrayList<>();
+        @Override
+        protected void applyHeaders() {
+            assertThat(this.headersWritten).isFalse();
+            this.headersWritten = true;
+        }
 
-		public TestServerHttpResponse() {
-			super(new DefaultDataBufferFactory());
-		}
+        @Override
+        protected void applyCookies() {
+            assertThat(this.cookiesWritten).isFalse();
+            this.cookiesWritten = true;
+        }
 
-		@Override
-		public <T> T getNativeResponse() {
-			throw new IllegalStateException("This is a mock. No running server, no native response.");
-		}
+        @Override
+        protected Mono<Void> writeWithInternal(Publisher<? extends DataBuffer> body) {
+            return Flux.from(body).map(b -> {
+                this.body.add(b);
+                return b;
+            }).then();
+        }
 
-		@Override
-		public void applyStatusCode() {
-			assertThat(this.statusCodeWritten).isFalse();
-			this.statusCodeWritten = true;
-		}
-
-		@Override
-		protected void applyHeaders() {
-			assertThat(this.headersWritten).isFalse();
-			this.headersWritten = true;
-		}
-
-		@Override
-		protected void applyCookies() {
-			assertThat(this.cookiesWritten).isFalse();
-			this.cookiesWritten = true;
-		}
-
-		@Override
-		protected Mono<Void> writeWithInternal(Publisher<? extends DataBuffer> body) {
-			return Flux.from(body).map(b -> {
-				this.body.add(b);
-				return b;
-			}).then();
-		}
-
-		@Override
-		protected Mono<Void> writeAndFlushWithInternal(
-				Publisher<? extends Publisher<? extends DataBuffer>> bodyWithFlush) {
-			return Flux.from(bodyWithFlush).flatMap(body ->
-				Flux.from(body).map(b -> {
-					this.body.add(b);
-					return b;
-				})
-			).then();
-		}
-	}
+        @Override
+        protected Mono<Void>
+            writeAndFlushWithInternal(Publisher<? extends Publisher<? extends DataBuffer>> bodyWithFlush) {
+            return Flux.from(bodyWithFlush).flatMap(body -> Flux.from(body).map(b -> {
+                this.body.add(b);
+                return b;
+            })).then();
+        }
+    }
 
 }

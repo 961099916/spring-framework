@@ -1,30 +1,26 @@
 /*
  * Copyright 2002-2018 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.orm.jpa.vendor;
 
 /**
- * Enumeration for common database platforms. Allows strong typing of database type
- * and portable configuration between JpaVendorDialect implementations.
+ * Enumeration for common database platforms. Allows strong typing of database type and portable configuration between
+ * JpaVendorDialect implementations.
  *
- * <p>If a given PersistenceProvider supports a database not listed here,
- * the strategy class can still be specified using the fully-qualified class name.
- * This enumeration is merely a convenience. The database products listed here
- * are the same as those explicitly supported for Spring JDBC exception translation
- * in {@code sql-error-codes.xml}.
+ * <p>
+ * If a given PersistenceProvider supports a database not listed here, the strategy class can still be specified using
+ * the fully-qualified class name. This enumeration is merely a convenience. The database products listed here are the
+ * same as those explicitly supported for Spring JDBC exception translation in {@code sql-error-codes.xml}.
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
@@ -33,30 +29,30 @@ package org.springframework.orm.jpa.vendor;
  */
 public enum Database {
 
-	DEFAULT,
+    DEFAULT,
 
-	DB2,
+    DB2,
 
-	DERBY,
+    DERBY,
 
-	/** @since 2.5.5 */
-	H2,
+    /** @since 2.5.5 */
+    H2,
 
-	/** @since 5.1 */
-	HANA,
+    /** @since 5.1 */
+    HANA,
 
-	HSQL,
+    HSQL,
 
-	INFORMIX,
+    INFORMIX,
 
-	MYSQL,
+    MYSQL,
 
-	ORACLE,
+    ORACLE,
 
-	POSTGRESQL,
+    POSTGRESQL,
 
-	SQL_SERVER,
+    SQL_SERVER,
 
-	SYBASE
+    SYBASE
 
 }

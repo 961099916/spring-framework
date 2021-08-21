@@ -18,11 +18,11 @@ package org.springframework.context.support
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
-import org.junit.jupiter.api.fail
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.getBean
-import org.springframework.context.support.BeanDefinitionDsl.*
+import org.springframework.context.support.BeanDefinitionDsl.Scope
 import org.springframework.core.env.SimpleCommandLinePropertySource
 import org.springframework.core.env.get
 import org.springframework.core.testfixture.env.MockPropertySource
@@ -43,7 +43,7 @@ class BeanDefinitionDslTests {
 			beans.initialize(this)
 			refresh()
 		}
-		
+
 		context.getBean<Foo>()
 		context.getBean<Bar>("bar")
 		assertThat(context.isPrototype("bar")).isTrue()
@@ -81,10 +81,10 @@ class BeanDefinitionDslTests {
 		val beans = beans {
 			bean<Foo>()
 			bean<Bar>("bar")
-			environment( { env["name"].equals("foofoo") } ) {
+			environment({ env["name"].equals("foofoo") }) {
 				bean { FooFoo(env["name"]!!) }
 			}
-			environment( { activeProfiles.contains("baz") } ) {
+			environment({ activeProfiles.contains("baz") }) {
 				bean { Baz(ref("bar")) }
 			}
 		}
@@ -164,7 +164,7 @@ class BeanDefinitionDslTests {
 		}
 		context.getBean<Baz>()
 	}
-	
+
 
 	@Test
 	fun `Declare beans with accepted profiles`() {

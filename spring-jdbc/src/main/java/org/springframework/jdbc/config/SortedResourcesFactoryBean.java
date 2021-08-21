@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2018 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.jdbc.config;
@@ -31,8 +28,8 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternUtils;
 
 /**
- * {@link FactoryBean} implementation that takes a list of location Strings
- * and creates a sorted array of {@link Resource} instances.
+ * {@link FactoryBean} implementation that takes a list of location Strings and creates a sorted array of
+ * {@link Resource} instances.
  *
  * @author Dave Syer
  * @author Juergen Hoeller
@@ -41,50 +38,46 @@ import org.springframework.core.io.support.ResourcePatternUtils;
  */
 public class SortedResourcesFactoryBean extends AbstractFactoryBean<Resource[]> implements ResourceLoaderAware {
 
-	private final List<String> locations;
+    private final List<String> locations;
 
-	private ResourcePatternResolver resourcePatternResolver;
+    private ResourcePatternResolver resourcePatternResolver;
 
+    public SortedResourcesFactoryBean(List<String> locations) {
+        this.locations = locations;
+        this.resourcePatternResolver = new PathMatchingResourcePatternResolver();
+    }
 
-	public SortedResourcesFactoryBean(List<String> locations) {
-		this.locations = locations;
-		this.resourcePatternResolver = new PathMatchingResourcePatternResolver();
-	}
+    public SortedResourcesFactoryBean(ResourceLoader resourceLoader, List<String> locations) {
+        this.locations = locations;
+        this.resourcePatternResolver = ResourcePatternUtils.getResourcePatternResolver(resourceLoader);
+    }
 
-	public SortedResourcesFactoryBean(ResourceLoader resourceLoader, List<String> locations) {
-		this.locations = locations;
-		this.resourcePatternResolver = ResourcePatternUtils.getResourcePatternResolver(resourceLoader);
-	}
+    @Override
+    public void setResourceLoader(ResourceLoader resourceLoader) {
+        this.resourcePatternResolver = ResourcePatternUtils.getResourcePatternResolver(resourceLoader);
+    }
 
+    @Override
+    public Class<? extends Resource[]> getObjectType() {
+        return Resource[].class;
+    }
 
-	@Override
-	public void setResourceLoader(ResourceLoader resourceLoader) {
-		this.resourcePatternResolver = ResourcePatternUtils.getResourcePatternResolver(resourceLoader);
-	}
-
-
-	@Override
-	public Class<? extends Resource[]> getObjectType() {
-		return Resource[].class;
-	}
-
-	@Override
-	protected Resource[] createInstance() throws Exception {
-		List<Resource> scripts = new ArrayList<>();
-		for (String location : this.locations) {
-			List<Resource> resources = new ArrayList<>(
-					Arrays.asList(this.resourcePatternResolver.getResources(location)));
-			resources.sort((r1, r2) -> {
-				try {
-					return r1.getURL().toString().compareTo(r2.getURL().toString());
-				}
-				catch (IOException ex) {
-					return 0;
-				}
-			});
-			scripts.addAll(resources);
-		}
-		return scripts.toArray(new Resource[0]);
-	}
+    @Override
+    protected Resource[] createInstance() throws Exception {
+        List<Resource> scripts = new ArrayList<>();
+        for (String location : this.locations) {
+            List<Resource> resources =
+                new ArrayList<>(Arrays.asList(this.resourcePatternResolver.getResources(location)));
+            resources.sort((r1, r2) -> {
+                try {
+                    return r1.getURL().toString().compareTo(r2.getURL().toString());
+                } catch (IOException ex) {
+                    return 0;
+                }
+            });
+            scripts.addAll(resources);
+        }
+        return scripts.toArray(new Resource[0]);
+    }
 
 }

@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.web.socket.sockjs.transport.handler;
@@ -37,31 +34,31 @@ import org.springframework.web.socket.sockjs.transport.session.PollingSockJsSess
  */
 public class XhrPollingTransportHandler extends AbstractHttpSendingTransportHandler {
 
-	@Override
-	public TransportType getTransportType() {
-		return TransportType.XHR;
-	}
+    @Override
+    public TransportType getTransportType() {
+        return TransportType.XHR;
+    }
 
-	@Override
-	protected MediaType getContentType() {
-		return new MediaType("application", "javascript", StandardCharsets.UTF_8);
-	}
+    @Override
+    protected MediaType getContentType() {
+        return new MediaType("application", "javascript", StandardCharsets.UTF_8);
+    }
 
-	@Override
-	protected SockJsFrameFormat getFrameFormat(ServerHttpRequest request) {
-		return new DefaultSockJsFrameFormat("%s\n");
-	}
+    @Override
+    protected SockJsFrameFormat getFrameFormat(ServerHttpRequest request) {
+        return new DefaultSockJsFrameFormat("%s\n");
+    }
 
-	@Override
-	public boolean checkSessionType(SockJsSession session) {
-		return (session instanceof PollingSockJsSession);
-	}
+    @Override
+    public boolean checkSessionType(SockJsSession session) {
+        return (session instanceof PollingSockJsSession);
+    }
 
-	@Override
-	public PollingSockJsSession createSession(
-			String sessionId, WebSocketHandler handler, Map<String, Object> attributes) {
+    @Override
+    public PollingSockJsSession createSession(String sessionId, WebSocketHandler handler,
+        Map<String, Object> attributes) {
 
-		return new PollingSockJsSession(sessionId, getServiceConfig(), handler, attributes);
-	}
+        return new PollingSockJsSession(sessionId, getServiceConfig(), handler, attributes);
+    }
 
 }

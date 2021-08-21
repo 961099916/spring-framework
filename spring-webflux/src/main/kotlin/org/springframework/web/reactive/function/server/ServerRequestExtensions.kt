@@ -17,9 +17,9 @@
 package org.springframework.web.reactive.function.server
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactive.awaitSingle
-import kotlinx.coroutines.reactive.asFlow
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
 import org.springframework.http.codec.multipart.Part
@@ -35,7 +35,7 @@ import java.security.Principal
  * Extension for [ServerRequest.bodyToMono] providing a `bodyToMono<Foo>()` variant
  * leveraging Kotlin reified type parameters. This extension is not subject to type
  * erasure and retains actual generic type arguments.
- * 
+ *
  * @author Sebastien Deleuze
  * @since 5.0
  */

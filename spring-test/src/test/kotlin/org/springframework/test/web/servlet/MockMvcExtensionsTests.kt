@@ -16,7 +16,8 @@
 
 package org.springframework.test.web.servlet
 
-import org.assertj.core.api.Assertions.*
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.hamcrest.CoreMatchers
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
@@ -88,12 +89,12 @@ class MockMvcExtensionsTests {
 	@Test
 	fun get() {
 		mockMvc.get("/person/{name}", "Lee") {
-				secure = true
-				accept = APPLICATION_JSON
-				headers {
-					contentLanguage = Locale.FRANCE
-				}
-				principal = Principal { "foo" }
+			secure = true
+			accept = APPLICATION_JSON
+			headers {
+				contentLanguage = Locale.FRANCE
+			}
+			principal = Principal { "foo" }
 		}.andExpect {
 			status { isOk }
 			content { contentType(APPLICATION_JSON) }
@@ -173,7 +174,8 @@ class MockMvcExtensionsTests {
 		@Suppress("UNUSED_PARAMETER")
 		@PostMapping("/person")
 		@ResponseStatus(HttpStatus.CREATED)
-		fun post(@RequestBody person: Person) {}
+		fun post(@RequestBody person: Person) {
+		}
 
 		@GetMapping("/async")
 		fun getAsync(): Mono<Person> {

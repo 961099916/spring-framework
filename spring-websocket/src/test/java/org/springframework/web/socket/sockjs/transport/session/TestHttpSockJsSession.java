@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2013 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.web.socket.sockjs.transport.session;
@@ -33,98 +30,94 @@ import org.springframework.web.socket.sockjs.transport.SockJsServiceConfig;
  */
 public class TestHttpSockJsSession extends StreamingSockJsSession {
 
-	private boolean active;
+    private final List<SockJsFrame> sockJsFrames = new ArrayList<>();
+    private boolean active;
+    private CloseStatus closeStatus;
 
-	private final List<SockJsFrame> sockJsFrames = new ArrayList<>();
+    private IOException exceptionOnWrite;
 
-	private CloseStatus closeStatus;
+    private int numberOfLastActiveTimeUpdates;
 
-	private IOException exceptionOnWrite;
+    private boolean cancelledHeartbeat;
 
-	private int numberOfLastActiveTimeUpdates;
+    private String subProtocol;
 
-	private boolean cancelledHeartbeat;
+    public TestHttpSockJsSession(String sessionId, SockJsServiceConfig config, WebSocketHandler wsHandler,
+        Map<String, Object> attributes) {
 
-	private String subProtocol;
+        super(sessionId, config, wsHandler, attributes);
+    }
 
+    @Override
+    protected byte[] getPrelude(ServerHttpRequest request) {
+        return new byte[0];
+    }
 
-	public TestHttpSockJsSession(String sessionId, SockJsServiceConfig config,
-			WebSocketHandler wsHandler, Map<String, Object> attributes) {
+    @Override
+    public String getAcceptedProtocol() {
+        return this.subProtocol;
+    }
 
-		super(sessionId, config, wsHandler, attributes);
-	}
+    @Override
+    public void setAcceptedProtocol(String protocol) {
+        this.subProtocol = protocol;
+    }
 
-	@Override
-	protected byte[] getPrelude(ServerHttpRequest request) {
-		return new byte[0];
-	}
+    public CloseStatus getCloseStatus() {
+        return this.closeStatus;
+    }
 
-	@Override
-	public String getAcceptedProtocol() {
-		return this.subProtocol;
-	}
+    @Override
+    public boolean isActive() {
+        return this.active;
+    }
 
-	@Override
-	public void setAcceptedProtocol(String protocol) {
-		this.subProtocol = protocol;
-	}
+    public void setActive(boolean active) {
+        this.active = active;
+    }
 
-	public CloseStatus getCloseStatus() {
-		return this.closeStatus;
-	}
+    public List<SockJsFrame> getSockJsFramesWritten() {
+        return this.sockJsFrames;
+    }
 
-	@Override
-	public boolean isActive() {
-		return this.active;
-	}
+    public void setExceptionOnWrite(IOException exceptionOnWrite) {
+        this.exceptionOnWrite = exceptionOnWrite;
+    }
 
-	public void setActive(boolean active) {
-		this.active = active;
-	}
+    public int getNumberOfLastActiveTimeUpdates() {
+        return this.numberOfLastActiveTimeUpdates;
+    }
 
-	public List<SockJsFrame> getSockJsFramesWritten() {
-		return this.sockJsFrames;
-	}
+    public boolean didCancelHeartbeat() {
+        return this.cancelledHeartbeat;
+    }
 
-	public void setExceptionOnWrite(IOException exceptionOnWrite) {
-		this.exceptionOnWrite = exceptionOnWrite;
-	}
+    @Override
+    protected void updateLastActiveTime() {
+        this.numberOfLastActiveTimeUpdates++;
+        super.updateLastActiveTime();
+    }
 
-	public int getNumberOfLastActiveTimeUpdates() {
-		return this.numberOfLastActiveTimeUpdates;
-	}
+    @Override
+    protected void cancelHeartbeat() {
+        this.cancelledHeartbeat = true;
+        super.cancelHeartbeat();
+    }
 
-	public boolean didCancelHeartbeat() {
-		return this.cancelledHeartbeat;
-	}
+    @Override
+    protected void writeFrameInternal(SockJsFrame frame) throws IOException {
+        this.sockJsFrames.add(frame);
+        if (this.exceptionOnWrite != null) {
+            throw this.exceptionOnWrite;
+        }
+    }
 
-	@Override
-	protected void updateLastActiveTime() {
-		this.numberOfLastActiveTimeUpdates++;
-		super.updateLastActiveTime();
-	}
+    @Override
+    protected void disconnect(CloseStatus status) {
+        this.closeStatus = status;
+    }
 
-	@Override
-	protected void cancelHeartbeat() {
-		this.cancelledHeartbeat = true;
-		super.cancelHeartbeat();
-	}
-
-	@Override
-	protected void writeFrameInternal(SockJsFrame frame) throws IOException {
-		this.sockJsFrames.add(frame);
-		if (this.exceptionOnWrite != null) {
-			throw this.exceptionOnWrite;
-		}
-	}
-
-	@Override
-	protected void disconnect(CloseStatus status) {
-		this.closeStatus = status;
-	}
-
-	@Override
-	protected void flushCache() throws SockJsTransportFailureException {
-	}
+    @Override
+    protected void flushCache() throws SockJsTransportFailureException {}
 
 }

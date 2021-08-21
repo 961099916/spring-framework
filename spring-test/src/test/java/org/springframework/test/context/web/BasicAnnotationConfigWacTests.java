@@ -1,29 +1,25 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.test.context.web;
 
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.ContextConfiguration;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author Sam Brannen
@@ -32,32 +28,32 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ContextConfiguration
 public class BasicAnnotationConfigWacTests extends AbstractBasicWacTests {
 
-	@Configuration
-	static class Config {
+    @Autowired
+    protected ServletContextAwareBean servletContextAwareBean;
 
-		@Bean
-		public String foo() {
-			return "enigma";
-		}
+    @Test
+    public void fooEnigmaAutowired() {
+        assertThat(foo).isEqualTo("enigma");
+    }
 
-		@Bean
-		public ServletContextAwareBean servletContextAwareBean() {
-			return new ServletContextAwareBean();
-		}
-	}
+    @Test
+    public void servletContextAwareBeanProcessed() {
+        assertThat(servletContextAwareBean).isNotNull();
+        assertThat(servletContextAwareBean.servletContext).isNotNull();
+    }
 
-	@Autowired
-	protected ServletContextAwareBean servletContextAwareBean;
+    @Configuration
+    static class Config {
 
-	@Test
-	public void fooEnigmaAutowired() {
-		assertThat(foo).isEqualTo("enigma");
-	}
+        @Bean
+        public String foo() {
+            return "enigma";
+        }
 
-	@Test
-	public void servletContextAwareBeanProcessed() {
-		assertThat(servletContextAwareBean).isNotNull();
-		assertThat(servletContextAwareBean.servletContext).isNotNull();
-	}
+        @Bean
+        public ServletContextAwareBean servletContextAwareBean() {
+            return new ServletContextAwareBean();
+        }
+    }
 
 }

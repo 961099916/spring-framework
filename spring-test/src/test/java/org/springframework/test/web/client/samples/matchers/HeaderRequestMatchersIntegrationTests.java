@@ -1,20 +1,22 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.test.web.client.samples.matchers;
+
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -23,7 +25,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -32,11 +33,6 @@ import org.springframework.test.web.Person;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
-import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
-
 /**
  * Examples of defining expectations on request headers.
  *
@@ -44,48 +40,44 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
  */
 public class HeaderRequestMatchersIntegrationTests {
 
-	private static final String RESPONSE_BODY = "{\"name\" : \"Ludwig van Beethoven\", \"someDouble\" : \"1.6035\"}";
+    private static final String RESPONSE_BODY = "{\"name\" : \"Ludwig van Beethoven\", \"someDouble\" : \"1.6035\"}";
 
+    private MockRestServiceServer mockServer;
 
-	private MockRestServiceServer mockServer;
+    private RestTemplate restTemplate;
 
-	private RestTemplate restTemplate;
+    @BeforeEach
+    public void setup() {
+        List<HttpMessageConverter<?>> converters = new ArrayList<>();
+        converters.add(new StringHttpMessageConverter());
+        converters.add(new MappingJackson2HttpMessageConverter());
 
+        this.restTemplate = new RestTemplate();
+        this.restTemplate.setMessageConverters(converters);
 
-	@BeforeEach
-	public void setup() {
-		List<HttpMessageConverter<?>> converters = new ArrayList<>();
-		converters.add(new StringHttpMessageConverter());
-		converters.add(new MappingJackson2HttpMessageConverter());
+        this.mockServer = MockRestServiceServer.createServer(this.restTemplate);
+    }
 
-		this.restTemplate = new RestTemplate();
-		this.restTemplate.setMessageConverters(converters);
+    @Test
+    public void testString() throws Exception {
+        this.mockServer.expect(requestTo("/person/1"))
+            .andExpect(header("Accept", "application/json, application/*+json"))
+            .andRespond(withSuccess(RESPONSE_BODY, MediaType.APPLICATION_JSON));
 
-		this.mockServer = MockRestServiceServer.createServer(this.restTemplate);
-	}
+        executeAndVerify();
+    }
 
+    @Test
+    public void testStringContains() throws Exception {
+        this.mockServer.expect(requestTo("/person/1")).andExpect(header("Accept", containsString("json")))
+            .andRespond(withSuccess(RESPONSE_BODY, MediaType.APPLICATION_JSON));
 
-	@Test
-	public void testString() throws Exception {
-		this.mockServer.expect(requestTo("/person/1"))
-			.andExpect(header("Accept", "application/json, application/*+json"))
-			.andRespond(withSuccess(RESPONSE_BODY, MediaType.APPLICATION_JSON));
+        executeAndVerify();
+    }
 
-		executeAndVerify();
-	}
-
-	@Test
-	public void testStringContains() throws Exception {
-		this.mockServer.expect(requestTo("/person/1"))
-			.andExpect(header("Accept", containsString("json")))
-			.andRespond(withSuccess(RESPONSE_BODY, MediaType.APPLICATION_JSON));
-
-		executeAndVerify();
-	}
-
-	private void executeAndVerify() throws URISyntaxException {
-		this.restTemplate.getForObject(new URI("/person/1"), Person.class);
-		this.mockServer.verify();
-	}
+    private void executeAndVerify() throws URISyntaxException {
+        this.restTemplate.getForObject(new URI("/person/1"), Person.class);
+        this.mockServer.verify();
+    }
 
 }

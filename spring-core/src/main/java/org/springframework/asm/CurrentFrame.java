@@ -6,13 +6,13 @@
 // modification, are permitted provided that the following conditions
 // are met:
 // 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
+// notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the copyright holders nor the names of its
-//    contributors may be used to endorse or promote products derived from
-//    this software without specific prior written permission.
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,28 +29,27 @@
 package org.springframework.asm;
 
 /**
- * Information about the input stack map frame at the "current" instruction of a method. This is
- * implemented as a Frame subclass for a "basic block" containing only one instruction.
+ * Information about the input stack map frame at the "current" instruction of a method. This is implemented as a Frame
+ * subclass for a "basic block" containing only one instruction.
  *
  * @author Eric Bruneton
  */
 final class CurrentFrame extends Frame {
 
-  CurrentFrame(final Label owner) {
-    super(owner);
-  }
+    CurrentFrame(final Label owner) {
+        super(owner);
+    }
 
-  /**
-   * Sets this CurrentFrame to the input stack map frame of the next "current" instruction, i.e. the
-   * instruction just after the given one. It is assumed that the value of this object when this
-   * method is called is the stack map frame status just before the given instruction is executed.
-   */
-  @Override
-  void execute(
-      final int opcode, final int arg, final Symbol symbolArg, final SymbolTable symbolTable) {
-    super.execute(opcode, arg, symbolArg, symbolTable);
-    Frame successor = new Frame(null);
-    merge(symbolTable, successor, 0);
-    copyFrom(successor);
-  }
+    /**
+     * Sets this CurrentFrame to the input stack map frame of the next "current" instruction, i.e. the instruction just
+     * after the given one. It is assumed that the value of this object when this method is called is the stack map
+     * frame status just before the given instruction is executed.
+     */
+    @Override
+    void execute(final int opcode, final int arg, final Symbol symbolArg, final SymbolTable symbolTable) {
+        super.execute(opcode, arg, symbolArg, symbolTable);
+        Frame successor = new Frame(null);
+        merge(symbolTable, successor, 0);
+        copyFrom(successor);
+    }
 }

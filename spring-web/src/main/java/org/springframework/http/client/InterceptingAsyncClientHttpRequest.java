@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2018 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.http.client;
@@ -29,8 +26,8 @@ import org.springframework.util.StreamUtils;
 import org.springframework.util.concurrent.ListenableFuture;
 
 /**
- * An {@link AsyncClientHttpRequest} wrapper that enriches it proceeds the actual
- * request execution with calling the registered interceptors.
+ * An {@link AsyncClientHttpRequest} wrapper that enriches it proceeds the actual request execution with calling the
+ * registered interceptors.
  *
  * @author Jakub Narloch
  * @author Rossen Stoyanchev
@@ -40,86 +37,86 @@ import org.springframework.util.concurrent.ListenableFuture;
 @Deprecated
 class InterceptingAsyncClientHttpRequest extends AbstractBufferingAsyncClientHttpRequest {
 
-	private AsyncClientHttpRequestFactory requestFactory;
+    private AsyncClientHttpRequestFactory requestFactory;
 
-	private List<AsyncClientHttpRequestInterceptor> interceptors;
+    private List<AsyncClientHttpRequestInterceptor> interceptors;
 
-	private URI uri;
+    private URI uri;
 
-	private HttpMethod httpMethod;
+    private HttpMethod httpMethod;
 
+    /**
+     * Create new instance of {@link InterceptingAsyncClientHttpRequest}.
+     * 
+     * @param requestFactory
+     *            the async request factory
+     * @param interceptors
+     *            the list of interceptors
+     * @param uri
+     *            the request URI
+     * @param httpMethod
+     *            the HTTP method
+     */
+    public InterceptingAsyncClientHttpRequest(AsyncClientHttpRequestFactory requestFactory,
+        List<AsyncClientHttpRequestInterceptor> interceptors, URI uri, HttpMethod httpMethod) {
 
-	/**
-	 * Create new instance of {@link InterceptingAsyncClientHttpRequest}.
-	 * @param requestFactory the async request factory
-	 * @param interceptors the list of interceptors
-	 * @param uri the request URI
-	 * @param httpMethod the HTTP method
-	 */
-	public InterceptingAsyncClientHttpRequest(AsyncClientHttpRequestFactory requestFactory,
-			List<AsyncClientHttpRequestInterceptor> interceptors, URI uri, HttpMethod httpMethod) {
+        this.requestFactory = requestFactory;
+        this.interceptors = interceptors;
+        this.uri = uri;
+        this.httpMethod = httpMethod;
+    }
 
-		this.requestFactory = requestFactory;
-		this.interceptors = interceptors;
-		this.uri = uri;
-		this.httpMethod = httpMethod;
-	}
+    @Override
+    protected ListenableFuture<ClientHttpResponse> executeInternal(HttpHeaders headers, byte[] body)
+        throws IOException {
 
+        return new AsyncRequestExecution().executeAsync(this, body);
+    }
 
-	@Override
-	protected ListenableFuture<ClientHttpResponse> executeInternal(HttpHeaders headers, byte[] body)
-			throws IOException {
+    @Override
+    public HttpMethod getMethod() {
+        return this.httpMethod;
+    }
 
-		return new AsyncRequestExecution().executeAsync(this, body);
-	}
+    @Override
+    public String getMethodValue() {
+        return this.httpMethod.name();
+    }
 
-	@Override
-	public HttpMethod getMethod() {
-		return this.httpMethod;
-	}
+    @Override
+    public URI getURI() {
+        return this.uri;
+    }
 
-	@Override
-	public String getMethodValue() {
-		return this.httpMethod.name();
-	}
+    private class AsyncRequestExecution implements AsyncClientHttpRequestExecution {
 
-	@Override
-	public URI getURI() {
-		return this.uri;
-	}
+        private Iterator<AsyncClientHttpRequestInterceptor> iterator;
 
+        public AsyncRequestExecution() {
+            this.iterator = interceptors.iterator();
+        }
 
-	private class AsyncRequestExecution implements AsyncClientHttpRequestExecution {
+        @Override
+        public ListenableFuture<ClientHttpResponse> executeAsync(HttpRequest request, byte[] body) throws IOException {
 
-		private Iterator<AsyncClientHttpRequestInterceptor> iterator;
+            if (this.iterator.hasNext()) {
+                AsyncClientHttpRequestInterceptor interceptor = this.iterator.next();
+                return interceptor.intercept(request, body, this);
+            } else {
+                URI uri = request.getURI();
+                HttpMethod method = request.getMethod();
+                HttpHeaders headers = request.getHeaders();
 
-		public AsyncRequestExecution() {
-			this.iterator = interceptors.iterator();
-		}
+                Assert.state(method != null, "No standard HTTP method");
+                AsyncClientHttpRequest delegate = requestFactory.createAsyncRequest(uri, method);
+                delegate.getHeaders().putAll(headers);
+                if (body.length > 0) {
+                    StreamUtils.copy(body, delegate.getBody());
+                }
 
-		@Override
-		public ListenableFuture<ClientHttpResponse> executeAsync(HttpRequest request, byte[] body)
-				throws IOException {
-
-			if (this.iterator.hasNext()) {
-				AsyncClientHttpRequestInterceptor interceptor = this.iterator.next();
-				return interceptor.intercept(request, body, this);
-			}
-			else {
-				URI uri = request.getURI();
-				HttpMethod method = request.getMethod();
-				HttpHeaders headers = request.getHeaders();
-
-				Assert.state(method != null, "No standard HTTP method");
-				AsyncClientHttpRequest delegate = requestFactory.createAsyncRequest(uri, method);
-				delegate.getHeaders().putAll(headers);
-				if (body.length > 0) {
-					StreamUtils.copy(body, delegate.getBody());
-				}
-
-				return delegate.executeAsync();
-			}
-		}
-	}
+                return delegate.executeAsync();
+            }
+        }
+    }
 
 }

@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.web.socket.sockjs.transport.handler;
@@ -40,115 +37,101 @@ import org.springframework.web.socket.sockjs.transport.session.StreamingSockJsSe
 import org.springframework.web.util.JavaScriptUtils;
 
 /**
- * An HTTP {@link TransportHandler} that uses a famous browser
- * {@code document.domain technique}. See <a href=
- * "https://stackoverflow.com/questions/1481251/what-does-document-domain-document-domain-do">
- * stackoverflow.com/questions/1481251/what-does-document-domain-document-domain-do</a>
- * for details.
+ * An HTTP {@link TransportHandler} that uses a famous browser {@code document.domain technique}. See
+ * <a href= "https://stackoverflow.com/questions/1481251/what-does-document-domain-document-domain-do">
+ * stackoverflow.com/questions/1481251/what-does-document-domain-document-domain-do</a> for details.
  *
  * @author Rossen Stoyanchev
  * @since 4.0
  */
 public class HtmlFileTransportHandler extends AbstractHttpSendingTransportHandler {
 
-	private static final String PARTIAL_HTML_CONTENT;
+    private static final String PARTIAL_HTML_CONTENT;
 
-	// Safari needs at least 1024 bytes to parse the website.
-	// https://code.google.com/p/browsersec/wiki/Part2#Survey_of_content_sniffing_behaviors
-	private static final int MINIMUM_PARTIAL_HTML_CONTENT_LENGTH = 1024;
+    // Safari needs at least 1024 bytes to parse the website.
+    // https://code.google.com/p/browsersec/wiki/Part2#Survey_of_content_sniffing_behaviors
+    private static final int MINIMUM_PARTIAL_HTML_CONTENT_LENGTH = 1024;
 
+    static {
+        StringBuilder sb = new StringBuilder(
+            "<!doctype html>\n" + "<html><head>\n" + "  <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\" />\n"
+                + "  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n"
+                + "</head><body><h2>Don't panic!</h2>\n" + "  <script>\n" + "    document.domain = document.domain;\n"
+                + "    var c = parent.%s;\n" + "    c.start();\n" + "    function p(d) {c.message(d);};\n"
+                + "    window.onload = function() {c.stop();};\n" + "  </script>");
 
-	static {
-		StringBuilder sb = new StringBuilder(
-				"<!doctype html>\n" +
-				"<html><head>\n" +
-				"  <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\" />\n" +
-				"  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n" +
-				"</head><body><h2>Don't panic!</h2>\n" +
-				"  <script>\n" +
-				"    document.domain = document.domain;\n" +
-				"    var c = parent.%s;\n" +
-				"    c.start();\n" +
-				"    function p(d) {c.message(d);};\n" +
-				"    window.onload = function() {c.stop();};\n" +
-				"  </script>"
-				);
+        while (sb.length() < MINIMUM_PARTIAL_HTML_CONTENT_LENGTH) {
+            sb.append(" ");
+        }
+        PARTIAL_HTML_CONTENT = sb.toString();
+    }
 
-		while (sb.length() < MINIMUM_PARTIAL_HTML_CONTENT_LENGTH) {
-			sb.append(" ");
-		}
-		PARTIAL_HTML_CONTENT = sb.toString();
-	}
+    @Override
+    public TransportType getTransportType() {
+        return TransportType.HTML_FILE;
+    }
 
+    @Override
+    protected MediaType getContentType() {
+        return new MediaType("text", "html", StandardCharsets.UTF_8);
+    }
 
-	@Override
-	public TransportType getTransportType() {
-		return TransportType.HTML_FILE;
-	}
+    @Override
+    public boolean checkSessionType(SockJsSession session) {
+        return (session instanceof HtmlFileStreamingSockJsSession);
+    }
 
-	@Override
-	protected MediaType getContentType() {
-		return new MediaType("text", "html", StandardCharsets.UTF_8);
-	}
+    @Override
+    public StreamingSockJsSession createSession(String sessionId, WebSocketHandler handler,
+        Map<String, Object> attributes) {
 
-	@Override
-	public boolean checkSessionType(SockJsSession session) {
-		return (session instanceof HtmlFileStreamingSockJsSession);
-	}
+        return new HtmlFileStreamingSockJsSession(sessionId, getServiceConfig(), handler, attributes);
+    }
 
-	@Override
-	public StreamingSockJsSession createSession(
-			String sessionId, WebSocketHandler handler, Map<String, Object> attributes) {
+    @Override
+    public void handleRequestInternal(ServerHttpRequest request, ServerHttpResponse response,
+        AbstractHttpSockJsSession sockJsSession) throws SockJsException {
 
-		return new HtmlFileStreamingSockJsSession(sessionId, getServiceConfig(), handler, attributes);
-	}
+        String callback = getCallbackParam(request);
+        if (!StringUtils.hasText(callback)) {
+            response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
+            try {
+                response.getBody().write("\"callback\" parameter required".getBytes(StandardCharsets.UTF_8));
+            } catch (IOException ex) {
+                sockJsSession.tryCloseWithSockJsTransportError(ex, CloseStatus.SERVER_ERROR);
+                throw new SockJsTransportFailureException("Failed to write to response", sockJsSession.getId(), ex);
+            }
+            return;
+        }
 
-	@Override
-	public void handleRequestInternal(ServerHttpRequest request, ServerHttpResponse response,
-			AbstractHttpSockJsSession sockJsSession) throws SockJsException {
+        super.handleRequestInternal(request, response, sockJsSession);
+    }
 
-		String callback = getCallbackParam(request);
-		if (!StringUtils.hasText(callback)) {
-			response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
-			try {
-				response.getBody().write("\"callback\" parameter required".getBytes(StandardCharsets.UTF_8));
-			}
-			catch (IOException ex) {
-				sockJsSession.tryCloseWithSockJsTransportError(ex, CloseStatus.SERVER_ERROR);
-				throw new SockJsTransportFailureException("Failed to write to response", sockJsSession.getId(), ex);
-			}
-			return;
-		}
+    @Override
+    protected SockJsFrameFormat getFrameFormat(ServerHttpRequest request) {
+        return new DefaultSockJsFrameFormat("<script>\np(\"%s\");\n</script>\r\n") {
+            @Override
+            protected String preProcessContent(String content) {
+                return JavaScriptUtils.javaScriptEscape(content);
+            }
+        };
+    }
 
-		super.handleRequestInternal(request, response, sockJsSession);
-	}
+    private class HtmlFileStreamingSockJsSession extends StreamingSockJsSession {
 
-	@Override
-	protected SockJsFrameFormat getFrameFormat(ServerHttpRequest request) {
-		return new DefaultSockJsFrameFormat("<script>\np(\"%s\");\n</script>\r\n") {
-			@Override
-			protected String preProcessContent(String content) {
-				return JavaScriptUtils.javaScriptEscape(content);
-			}
-		};
-	}
+        public HtmlFileStreamingSockJsSession(String sessionId, SockJsServiceConfig config, WebSocketHandler wsHandler,
+            Map<String, Object> attributes) {
 
+            super(sessionId, config, wsHandler, attributes);
+        }
 
-	private class HtmlFileStreamingSockJsSession extends StreamingSockJsSession {
-
-		public HtmlFileStreamingSockJsSession(String sessionId, SockJsServiceConfig config,
-				WebSocketHandler wsHandler, Map<String, Object> attributes) {
-
-			super(sessionId, config, wsHandler, attributes);
-		}
-
-		@Override
-		protected byte[] getPrelude(ServerHttpRequest request) {
-			// We already validated the parameter above...
-			String callback = getCallbackParam(request);
-			String html = String.format(PARTIAL_HTML_CONTENT, callback);
-			return html.getBytes(StandardCharsets.UTF_8);
-		}
-	}
+        @Override
+        protected byte[] getPrelude(ServerHttpRequest request) {
+            // We already validated the parameter above...
+            String callback = getCallbackParam(request);
+            String html = String.format(PARTIAL_HTML_CONTENT, callback);
+            return html.getBytes(StandardCharsets.UTF_8);
+        }
+    }
 
 }

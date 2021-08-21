@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2018 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.messaging.handler.invocation;
@@ -30,42 +27,39 @@ import org.springframework.messaging.Message;
  */
 public class StubArgumentResolver implements HandlerMethodArgumentResolver {
 
-	private final Class<?> valueType;
+    private final Class<?> valueType;
 
-	@Nullable
-	private final Object value;
+    @Nullable
+    private final Object value;
 
-	private List<MethodParameter> resolvedParameters = new ArrayList<>();
+    private List<MethodParameter> resolvedParameters = new ArrayList<>();
 
+    public StubArgumentResolver(Object value) {
+        this(value.getClass(), value);
+    }
 
-	public StubArgumentResolver(Object value) {
-		this(value.getClass(), value);
-	}
+    public StubArgumentResolver(Class<?> valueType) {
+        this(valueType, null);
+    }
 
-	public StubArgumentResolver(Class<?> valueType) {
-		this(valueType, null);
-	}
+    public StubArgumentResolver(Class<?> valueType, Object value) {
+        this.valueType = valueType;
+        this.value = value;
+    }
 
-	public StubArgumentResolver(Class<?> valueType, Object value) {
-		this.valueType = valueType;
-		this.value = value;
-	}
+    public List<MethodParameter> getResolvedParameters() {
+        return resolvedParameters;
+    }
 
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) {
+        return parameter.getParameterType().equals(this.valueType);
+    }
 
-	public List<MethodParameter> getResolvedParameters() {
-		return resolvedParameters;
-	}
-
-
-	@Override
-	public boolean supportsParameter(MethodParameter parameter) {
-		return parameter.getParameterType().equals(this.valueType);
-	}
-
-	@Override
-	public Object resolveArgument(MethodParameter parameter, Message<?> message) {
-		this.resolvedParameters.add(parameter);
-		return this.value;
-	}
+    @Override
+    public Object resolveArgument(MethodParameter parameter, Message<?> message) {
+        this.resolvedParameters.add(parameter);
+        return this.value;
+    }
 
 }

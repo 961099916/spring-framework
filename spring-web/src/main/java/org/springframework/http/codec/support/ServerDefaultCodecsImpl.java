@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 package org.springframework.http.codec.support;
 
@@ -33,55 +30,51 @@ import org.springframework.lang.Nullable;
  */
 class ServerDefaultCodecsImpl extends BaseDefaultCodecs implements ServerCodecConfigurer.ServerDefaultCodecs {
 
-	@Nullable
-	private HttpMessageReader<?> multipartReader;
+    @Nullable
+    private HttpMessageReader<?> multipartReader;
 
-	@Nullable
-	private Encoder<?> sseEncoder;
+    @Nullable
+    private Encoder<?> sseEncoder;
 
+    ServerDefaultCodecsImpl() {}
 
-	ServerDefaultCodecsImpl() {
-	}
+    ServerDefaultCodecsImpl(ServerDefaultCodecsImpl other) {
+        super(other);
+        this.multipartReader = other.multipartReader;
+        this.sseEncoder = other.sseEncoder;
+    }
 
-	ServerDefaultCodecsImpl(ServerDefaultCodecsImpl other) {
-		super(other);
-		this.multipartReader = other.multipartReader;
-		this.sseEncoder = other.sseEncoder;
-	}
+    @Override
+    public void multipartReader(HttpMessageReader<?> reader) {
+        this.multipartReader = reader;
+    }
 
+    @Override
+    public void serverSentEventEncoder(Encoder<?> encoder) {
+        this.sseEncoder = encoder;
+    }
 
-	@Override
-	public void multipartReader(HttpMessageReader<?> reader) {
-		this.multipartReader = reader;
-	}
+    @Override
+    protected void extendTypedReaders(List<HttpMessageReader<?>> typedReaders) {
+        if (this.multipartReader != null) {
+            addCodec(typedReaders, this.multipartReader);
+            return;
+        }
+        if (synchronossMultipartPresent) {
+            SynchronossPartHttpMessageReader partReader = new SynchronossPartHttpMessageReader();
+            addCodec(typedReaders, partReader);
+            addCodec(typedReaders, new MultipartHttpMessageReader(partReader));
+        }
+    }
 
-	@Override
-	public void serverSentEventEncoder(Encoder<?> encoder) {
-		this.sseEncoder = encoder;
-	}
+    @Override
+    protected void extendObjectWriters(List<HttpMessageWriter<?>> objectWriters) {
+        objectWriters.add(new ServerSentEventHttpMessageWriter(getSseEncoder()));
+    }
 
-
-	@Override
-	protected void extendTypedReaders(List<HttpMessageReader<?>> typedReaders) {
-		if (this.multipartReader != null) {
-			addCodec(typedReaders, this.multipartReader);
-			return;
-		}
-		if (synchronossMultipartPresent) {
-			SynchronossPartHttpMessageReader partReader = new SynchronossPartHttpMessageReader();
-			addCodec(typedReaders, partReader);
-			addCodec(typedReaders, new MultipartHttpMessageReader(partReader));
-		}
-	}
-
-	@Override
-	protected void extendObjectWriters(List<HttpMessageWriter<?>> objectWriters) {
-		objectWriters.add(new ServerSentEventHttpMessageWriter(getSseEncoder()));
-	}
-
-	@Nullable
-	private Encoder<?> getSseEncoder() {
-		return this.sseEncoder != null ? this.sseEncoder : jackson2Present ? getJackson2JsonEncoder() : null;
-	}
+    @Nullable
+    private Encoder<?> getSseEncoder() {
+        return this.sseEncoder != null ? this.sseEncoder : jackson2Present ? getJackson2JsonEncoder() : null;
+    }
 
 }

@@ -1,20 +1,19 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.dao.annotation;
+
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -24,15 +23,12 @@ import java.lang.annotation.Target;
 import javax.persistence.PersistenceException;
 
 import org.junit.jupiter.api.Test;
-
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.dao.support.DataAccessUtilsTests.MapPersistenceExceptionTranslator;
 import org.springframework.dao.support.PersistenceExceptionTranslator;
 import org.springframework.stereotype.Repository;
-
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Tests for PersistenceExceptionTranslationAdvisor's exception translation, as applied by
@@ -43,157 +39,142 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  */
 public class PersistenceExceptionTranslationAdvisorTests {
 
-	private RuntimeException doNotTranslate = new RuntimeException();
+    private RuntimeException doNotTranslate = new RuntimeException();
 
-	private PersistenceException persistenceException1 = new PersistenceException();
+    private PersistenceException persistenceException1 = new PersistenceException();
 
-	protected RepositoryInterface createProxy(RepositoryInterfaceImpl target) {
-		MapPersistenceExceptionTranslator mpet = new MapPersistenceExceptionTranslator();
-		mpet.addTranslation(persistenceException1, new InvalidDataAccessApiUsageException("", persistenceException1));
-		ProxyFactory pf = new ProxyFactory(target);
-		pf.addInterface(RepositoryInterface.class);
-		addPersistenceExceptionTranslation(pf, mpet);
-		return (RepositoryInterface) pf.getProxy();
-	}
+    protected RepositoryInterface createProxy(RepositoryInterfaceImpl target) {
+        MapPersistenceExceptionTranslator mpet = new MapPersistenceExceptionTranslator();
+        mpet.addTranslation(persistenceException1, new InvalidDataAccessApiUsageException("", persistenceException1));
+        ProxyFactory pf = new ProxyFactory(target);
+        pf.addInterface(RepositoryInterface.class);
+        addPersistenceExceptionTranslation(pf, mpet);
+        return (RepositoryInterface)pf.getProxy();
+    }
 
-	protected void addPersistenceExceptionTranslation(ProxyFactory pf, PersistenceExceptionTranslator pet) {
-		pf.addAdvisor(new PersistenceExceptionTranslationAdvisor(pet, Repository.class));
-	}
+    protected void addPersistenceExceptionTranslation(ProxyFactory pf, PersistenceExceptionTranslator pet) {
+        pf.addAdvisor(new PersistenceExceptionTranslationAdvisor(pet, Repository.class));
+    }
 
-	@Test
-	public void noTranslationNeeded() {
-		RepositoryInterfaceImpl target = new RepositoryInterfaceImpl();
-		RepositoryInterface ri = createProxy(target);
+    @Test
+    public void noTranslationNeeded() {
+        RepositoryInterfaceImpl target = new RepositoryInterfaceImpl();
+        RepositoryInterface ri = createProxy(target);
 
-		ri.noThrowsClause();
-		ri.throwsPersistenceException();
+        ri.noThrowsClause();
+        ri.throwsPersistenceException();
 
-		target.setBehavior(persistenceException1);
-		assertThatExceptionOfType(RuntimeException.class).isThrownBy(
-				ri::noThrowsClause)
-			.isSameAs(persistenceException1);
-		assertThatExceptionOfType(RuntimeException.class).isThrownBy(
-				ri::throwsPersistenceException)
-			.isSameAs(persistenceException1);
-	}
+        target.setBehavior(persistenceException1);
+        assertThatExceptionOfType(RuntimeException.class).isThrownBy(ri::noThrowsClause)
+            .isSameAs(persistenceException1);
+        assertThatExceptionOfType(RuntimeException.class).isThrownBy(ri::throwsPersistenceException)
+            .isSameAs(persistenceException1);
+    }
 
-	@Test
-	public void translationNotNeededForTheseExceptions() {
-		RepositoryInterfaceImpl target = new StereotypedRepositoryInterfaceImpl();
-		RepositoryInterface ri = createProxy(target);
+    @Test
+    public void translationNotNeededForTheseExceptions() {
+        RepositoryInterfaceImpl target = new StereotypedRepositoryInterfaceImpl();
+        RepositoryInterface ri = createProxy(target);
 
-		ri.noThrowsClause();
-		ri.throwsPersistenceException();
+        ri.noThrowsClause();
+        ri.throwsPersistenceException();
 
-		target.setBehavior(doNotTranslate);
-		assertThatExceptionOfType(RuntimeException.class).isThrownBy(
-				ri::noThrowsClause)
-			.isSameAs(doNotTranslate);
-		assertThatExceptionOfType(RuntimeException.class).isThrownBy(
-				ri::throwsPersistenceException)
-			.isSameAs(doNotTranslate);
-	}
+        target.setBehavior(doNotTranslate);
+        assertThatExceptionOfType(RuntimeException.class).isThrownBy(ri::noThrowsClause).isSameAs(doNotTranslate);
+        assertThatExceptionOfType(RuntimeException.class).isThrownBy(ri::throwsPersistenceException)
+            .isSameAs(doNotTranslate);
+    }
 
-	@Test
-	public void translationNeededForTheseExceptions() {
-		doTestTranslationNeededForTheseExceptions(new StereotypedRepositoryInterfaceImpl());
-	}
+    @Test
+    public void translationNeededForTheseExceptions() {
+        doTestTranslationNeededForTheseExceptions(new StereotypedRepositoryInterfaceImpl());
+    }
 
-	@Test
-	public void translationNeededForTheseExceptionsOnSuperclass() {
-		doTestTranslationNeededForTheseExceptions(new MyStereotypedRepositoryInterfaceImpl());
-	}
+    @Test
+    public void translationNeededForTheseExceptionsOnSuperclass() {
+        doTestTranslationNeededForTheseExceptions(new MyStereotypedRepositoryInterfaceImpl());
+    }
 
-	@Test
-	public void translationNeededForTheseExceptionsWithCustomStereotype() {
-		doTestTranslationNeededForTheseExceptions(new CustomStereotypedRepositoryInterfaceImpl());
-	}
+    @Test
+    public void translationNeededForTheseExceptionsWithCustomStereotype() {
+        doTestTranslationNeededForTheseExceptions(new CustomStereotypedRepositoryInterfaceImpl());
+    }
 
-	@Test
-	public void translationNeededForTheseExceptionsOnInterface() {
-		doTestTranslationNeededForTheseExceptions(new MyInterfaceStereotypedRepositoryInterfaceImpl());
-	}
+    @Test
+    public void translationNeededForTheseExceptionsOnInterface() {
+        doTestTranslationNeededForTheseExceptions(new MyInterfaceStereotypedRepositoryInterfaceImpl());
+    }
 
-	@Test
-	public void translationNeededForTheseExceptionsOnInheritedInterface() {
-		doTestTranslationNeededForTheseExceptions(new MyInterfaceInheritedStereotypedRepositoryInterfaceImpl());
-	}
+    @Test
+    public void translationNeededForTheseExceptionsOnInheritedInterface() {
+        doTestTranslationNeededForTheseExceptions(new MyInterfaceInheritedStereotypedRepositoryInterfaceImpl());
+    }
 
-	private void doTestTranslationNeededForTheseExceptions(RepositoryInterfaceImpl target) {
-		RepositoryInterface ri = createProxy(target);
+    private void doTestTranslationNeededForTheseExceptions(RepositoryInterfaceImpl target) {
+        RepositoryInterface ri = createProxy(target);
 
-		target.setBehavior(persistenceException1);
-		assertThatExceptionOfType(DataAccessException.class).isThrownBy(
-				ri::noThrowsClause)
-			.withCause(persistenceException1);
+        target.setBehavior(persistenceException1);
+        assertThatExceptionOfType(DataAccessException.class).isThrownBy(ri::noThrowsClause)
+            .withCause(persistenceException1);
 
-		assertThatExceptionOfType(PersistenceException.class).isThrownBy(
-				ri::throwsPersistenceException)
-			.isSameAs(persistenceException1);
-	}
+        assertThatExceptionOfType(PersistenceException.class).isThrownBy(ri::throwsPersistenceException)
+            .isSameAs(persistenceException1);
+    }
 
+    public interface RepositoryInterface {
 
-	public interface RepositoryInterface {
+        void noThrowsClause();
 
-		void noThrowsClause();
+        void throwsPersistenceException() throws PersistenceException;
+    }
 
-		void throwsPersistenceException() throws PersistenceException;
-	}
+    @Target({ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @Repository
+    public @interface MyRepository {}
 
-	public static class RepositoryInterfaceImpl implements RepositoryInterface {
+    @Repository
+    public interface StereotypedInterface {}
 
-		private RuntimeException runtimeException;
+    public interface StereotypedInheritingInterface extends StereotypedInterface {}
 
-		public void setBehavior(RuntimeException rex) {
-			this.runtimeException = rex;
-		}
+    public static class RepositoryInterfaceImpl implements RepositoryInterface {
 
-		@Override
-		public void noThrowsClause() {
-			if (runtimeException != null) {
-				throw runtimeException;
-			}
-		}
+        private RuntimeException runtimeException;
 
-		@Override
-		public void throwsPersistenceException() throws PersistenceException {
-			if (runtimeException != null) {
-				throw runtimeException;
-			}
-		}
-	}
+        public void setBehavior(RuntimeException rex) {
+            this.runtimeException = rex;
+        }
 
-	@Repository
-	public static class StereotypedRepositoryInterfaceImpl extends RepositoryInterfaceImpl {
-		// Extends above class just to add repository annotation
-	}
+        @Override
+        public void noThrowsClause() {
+            if (runtimeException != null) {
+                throw runtimeException;
+            }
+        }
 
-	public static class MyStereotypedRepositoryInterfaceImpl extends StereotypedRepositoryInterfaceImpl {
-	}
+        @Override
+        public void throwsPersistenceException() throws PersistenceException {
+            if (runtimeException != null) {
+                throw runtimeException;
+            }
+        }
+    }
 
-	@MyRepository
-	public static class CustomStereotypedRepositoryInterfaceImpl extends RepositoryInterfaceImpl {
-	}
+    @Repository
+    public static class StereotypedRepositoryInterfaceImpl extends RepositoryInterfaceImpl {
+        // Extends above class just to add repository annotation
+    }
 
-	@Target({ElementType.TYPE})
-	@Retention(RetentionPolicy.RUNTIME)
-	@Repository
-	public @interface MyRepository {
-	}
+    public static class MyStereotypedRepositoryInterfaceImpl extends StereotypedRepositoryInterfaceImpl {}
 
-	@Repository
-	public interface StereotypedInterface {
-	}
+    @MyRepository
+    public static class CustomStereotypedRepositoryInterfaceImpl extends RepositoryInterfaceImpl {}
 
-	public static class MyInterfaceStereotypedRepositoryInterfaceImpl extends RepositoryInterfaceImpl
-			implements StereotypedInterface {
-	}
+    public static class MyInterfaceStereotypedRepositoryInterfaceImpl extends RepositoryInterfaceImpl
+        implements StereotypedInterface {}
 
-	public interface StereotypedInheritingInterface extends StereotypedInterface {
-	}
-
-	public static class MyInterfaceInheritedStereotypedRepositoryInterfaceImpl extends RepositoryInterfaceImpl
-			implements StereotypedInheritingInterface {
-	}
+    public static class MyInterfaceInheritedStereotypedRepositoryInterfaceImpl extends RepositoryInterfaceImpl
+        implements StereotypedInheritingInterface {}
 
 }

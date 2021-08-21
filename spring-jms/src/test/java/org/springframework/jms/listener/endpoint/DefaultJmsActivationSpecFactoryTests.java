@@ -1,33 +1,29 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.jms.listener.endpoint;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 import javax.jms.Destination;
 import javax.jms.Session;
 
 import org.junit.jupiter.api.Test;
-
 import org.springframework.jca.StubResourceAdapter;
 import org.springframework.jms.StubQueue;
 import org.springframework.jms.support.destination.DestinationResolver;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
 
 /**
  * @author Agim Emruli
@@ -35,133 +31,128 @@ import static org.mockito.Mockito.mock;
  */
 public class DefaultJmsActivationSpecFactoryTests {
 
-	private final JmsActivationSpecConfig activationSpecConfig = new JmsActivationSpecConfig() {{
-		setMaxConcurrency(5);
-		setPrefetchSize(3);
-		setAcknowledgeMode(Session.AUTO_ACKNOWLEDGE);
-		setClientId("clientid");
-		setDestinationName("destinationname");
-		setDurableSubscriptionName("durableSubscriptionName");
-		setMessageSelector("selector");
-	}};
+    private final JmsActivationSpecConfig activationSpecConfig = new JmsActivationSpecConfig() {
+        {
+            setMaxConcurrency(5);
+            setPrefetchSize(3);
+            setAcknowledgeMode(Session.AUTO_ACKNOWLEDGE);
+            setClientId("clientid");
+            setDestinationName("destinationname");
+            setDurableSubscriptionName("durableSubscriptionName");
+            setMessageSelector("selector");
+        }
+    };
 
+    @Test
+    public void activeMQResourceAdapterSetup() {
+        activationSpecConfig.setAcknowledgeMode(Session.SESSION_TRANSACTED);
+        JmsActivationSpecFactory activationSpecFactory = new DefaultJmsActivationSpecFactory();
+        StubActiveMQActivationSpec spec = (StubActiveMQActivationSpec)activationSpecFactory
+            .createActivationSpec(new StubActiveMQResourceAdapter(), activationSpecConfig);
 
-	@Test
-	public void activeMQResourceAdapterSetup() {
-		activationSpecConfig.setAcknowledgeMode(Session.SESSION_TRANSACTED);
-		JmsActivationSpecFactory activationSpecFactory = new DefaultJmsActivationSpecFactory();
-		StubActiveMQActivationSpec spec = (StubActiveMQActivationSpec) activationSpecFactory.createActivationSpec(
-				new StubActiveMQResourceAdapter(), activationSpecConfig);
+        assertThat(spec.getMaxSessions()).isEqualTo(5);
+        assertThat(spec.getMaxMessagesPerSessions()).isEqualTo(3);
+        assertThat(spec.isUseRAManagedTransaction()).isTrue();
+    }
 
-		assertThat(spec.getMaxSessions()).isEqualTo(5);
-		assertThat(spec.getMaxMessagesPerSessions()).isEqualTo(3);
-		assertThat(spec.isUseRAManagedTransaction()).isTrue();
-	}
+    @Test
+    public void webSphereResourceAdapterSetup() throws Exception {
+        Destination destination = new StubQueue();
 
-	@Test
-	public void webSphereResourceAdapterSetup() throws Exception {
-		Destination destination = new StubQueue();
+        DestinationResolver destinationResolver = mock(DestinationResolver.class);
+        given(destinationResolver.resolveDestinationName(null, "destinationname", false)).willReturn(destination);
 
-		DestinationResolver destinationResolver = mock(DestinationResolver.class);
-		given(destinationResolver.resolveDestinationName(null, "destinationname", false)).willReturn(destination);
+        DefaultJmsActivationSpecFactory activationSpecFactory = new DefaultJmsActivationSpecFactory();
+        activationSpecFactory.setDestinationResolver(destinationResolver);
 
-		DefaultJmsActivationSpecFactory activationSpecFactory = new DefaultJmsActivationSpecFactory();
-		activationSpecFactory.setDestinationResolver(destinationResolver);
+        StubWebSphereActivationSpecImpl spec = (StubWebSphereActivationSpecImpl)activationSpecFactory
+            .createActivationSpec(new StubWebSphereResourceAdapterImpl(), activationSpecConfig);
 
-		StubWebSphereActivationSpecImpl spec = (StubWebSphereActivationSpecImpl) activationSpecFactory
-				.createActivationSpec(new StubWebSphereResourceAdapterImpl(), activationSpecConfig);
+        assertThat(spec.getDestination()).isEqualTo(destination);
+        assertThat(spec.getMaxConcurrency()).isEqualTo(5);
+        assertThat(spec.getMaxBatchSize()).isEqualTo(3);
+    }
 
-		assertThat(spec.getDestination()).isEqualTo(destination);
-		assertThat(spec.getMaxConcurrency()).isEqualTo(5);
-		assertThat(spec.getMaxBatchSize()).isEqualTo(3);
-	}
+    private static class StubActiveMQResourceAdapter extends StubResourceAdapter {}
 
+    private static class StubWebSphereResourceAdapterImpl extends StubResourceAdapter {}
 
-	private static class StubActiveMQResourceAdapter extends StubResourceAdapter {
-	}
+    @SuppressWarnings("unused")
+    private static class StubActiveMQActivationSpec extends StubJmsActivationSpec {
 
+        private int maxSessions;
 
-	private static class StubWebSphereResourceAdapterImpl extends StubResourceAdapter {
-	}
+        private int maxMessagesPerSessions;
 
+        private String destination;
 
-	@SuppressWarnings("unused")
-	private static class StubActiveMQActivationSpec extends StubJmsActivationSpec {
+        private boolean useRAManagedTransaction;
 
-		private int maxSessions;
+        public int getMaxSessions() {
+            return maxSessions;
+        }
 
-		private int maxMessagesPerSessions;
+        public void setMaxSessions(int maxSessions) {
+            this.maxSessions = maxSessions;
+        }
 
-		private String destination;
+        public int getMaxMessagesPerSessions() {
+            return maxMessagesPerSessions;
+        }
 
-		private boolean useRAManagedTransaction;
+        public void setMaxMessagesPerSessions(int maxMessagesPerSessions) {
+            this.maxMessagesPerSessions = maxMessagesPerSessions;
+        }
 
-		public void setMaxSessions(int maxSessions) {
-			this.maxSessions = maxSessions;
-		}
+        public String getDestination() {
+            return destination;
+        }
 
-		public void setMaxMessagesPerSessions(int maxMessagesPerSessions) {
-			this.maxMessagesPerSessions = maxMessagesPerSessions;
-		}
+        public void setDestination(String destination) {
+            this.destination = destination;
+        }
 
-		public int getMaxSessions() {
-			return maxSessions;
-		}
+        public boolean isUseRAManagedTransaction() {
+            return useRAManagedTransaction;
+        }
 
-		public int getMaxMessagesPerSessions() {
-			return maxMessagesPerSessions;
-		}
+        public void setUseRAManagedTransaction(boolean useRAManagedTransaction) {
+            this.useRAManagedTransaction = useRAManagedTransaction;
+        }
+    }
 
-		public String getDestination() {
-			return destination;
-		}
+    @SuppressWarnings("unused")
+    private static class StubWebSphereActivationSpecImpl extends StubJmsActivationSpec {
 
-		public void setDestination(String destination) {
-			this.destination = destination;
-		}
+        private Destination destination;
 
-		public boolean isUseRAManagedTransaction() {
-			return useRAManagedTransaction;
-		}
+        private int maxConcurrency;
 
-		public void setUseRAManagedTransaction(boolean useRAManagedTransaction) {
-			this.useRAManagedTransaction = useRAManagedTransaction;
-		}
-	}
+        private int maxBatchSize;
 
+        public Destination getDestination() {
+            return destination;
+        }
 
-	@SuppressWarnings("unused")
-	private static class StubWebSphereActivationSpecImpl extends StubJmsActivationSpec {
+        public void setDestination(Destination destination) {
+            this.destination = destination;
+        }
 
-		private Destination destination;
+        public int getMaxConcurrency() {
+            return maxConcurrency;
+        }
 
-		private int maxConcurrency;
+        public void setMaxConcurrency(int maxConcurrency) {
+            this.maxConcurrency = maxConcurrency;
+        }
 
-		private int maxBatchSize;
+        public int getMaxBatchSize() {
+            return maxBatchSize;
+        }
 
-		public void setDestination(Destination destination) {
-			this.destination = destination;
-		}
-
-		public Destination getDestination() {
-			return destination;
-		}
-
-		public int getMaxConcurrency() {
-			return maxConcurrency;
-		}
-
-		public void setMaxConcurrency(int maxConcurrency) {
-			this.maxConcurrency = maxConcurrency;
-		}
-
-		public int getMaxBatchSize() {
-			return maxBatchSize;
-		}
-
-		public void setMaxBatchSize(int maxBatchSize) {
-			this.maxBatchSize = maxBatchSize;
-		}
-	}
+        public void setMaxBatchSize(int maxBatchSize) {
+            this.maxBatchSize = maxBatchSize;
+        }
+    }
 
 }

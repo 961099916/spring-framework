@@ -1,25 +1,22 @@
 /*
  * Copyright 2002-2019 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.web.reactive.result.method.annotation;
 
-import java.time.Duration;
+import static org.springframework.http.MediaType.APPLICATION_STREAM_JSON;
+import static org.springframework.http.MediaType.APPLICATION_STREAM_JSON_VALUE;
 
-import reactor.core.publisher.Flux;
-import reactor.test.StepVerifier;
+import java.time.Duration;
 
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -35,8 +32,8 @@ import org.springframework.web.server.adapter.WebHttpHandlerBuilder;
 import org.springframework.web.testfixture.http.server.reactive.bootstrap.AbstractHttpHandlerIntegrationTests;
 import org.springframework.web.testfixture.http.server.reactive.bootstrap.HttpServer;
 
-import static org.springframework.http.MediaType.APPLICATION_STREAM_JSON;
-import static org.springframework.http.MediaType.APPLICATION_STREAM_JSON_VALUE;
+import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
 
 /**
  * @author Sebastien Deleuze
@@ -44,128 +41,109 @@ import static org.springframework.http.MediaType.APPLICATION_STREAM_JSON_VALUE;
  */
 class JacksonStreamingIntegrationTests extends AbstractHttpHandlerIntegrationTests {
 
-	private AnnotationConfigApplicationContext wac;
+    private AnnotationConfigApplicationContext wac;
 
-	private WebClient webClient;
+    private WebClient webClient;
 
+    @Override
+    protected HttpHandler createHttpHandler() {
+        this.wac = new AnnotationConfigApplicationContext();
+        this.wac.register(TestConfiguration.class);
+        this.wac.refresh();
 
-	@Override
-	protected HttpHandler createHttpHandler() {
-		this.wac = new AnnotationConfigApplicationContext();
-		this.wac.register(TestConfiguration.class);
-		this.wac.refresh();
+        return WebHttpHandlerBuilder.webHandler(new DispatcherHandler(this.wac)).build();
+    }
 
-		return WebHttpHandlerBuilder.webHandler(new DispatcherHandler(this.wac)).build();
-	}
+    @Override
+    protected void startServer(HttpServer httpServer) throws Exception {
+        super.startServer(httpServer);
+        this.webClient = WebClient.create("http://localhost:" + this.port);
+    }
 
-	@Override
-	protected void startServer(HttpServer httpServer) throws Exception {
-		super.startServer(httpServer);
-		this.webClient = WebClient.create("http://localhost:" + this.port);
-	}
+    @ParameterizedHttpServerTest
+    void jsonStreaming(HttpServer httpServer) throws Exception {
+        startServer(httpServer);
 
+        Flux<Person> result =
+            this.webClient.get().uri("/stream").accept(APPLICATION_STREAM_JSON).retrieve().bodyToFlux(Person.class);
 
-	@ParameterizedHttpServerTest
-	void jsonStreaming(HttpServer httpServer) throws Exception {
-		startServer(httpServer);
+        StepVerifier.create(result).expectNext(new Person("foo 0")).expectNext(new Person("foo 1")).thenCancel()
+            .verify();
+    }
 
-		Flux<Person> result = this.webClient.get()
-				.uri("/stream")
-				.accept(APPLICATION_STREAM_JSON)
-				.retrieve()
-				.bodyToFlux(Person.class);
+    @ParameterizedHttpServerTest
+    void smileStreaming(HttpServer httpServer) throws Exception {
+        startServer(httpServer);
 
-		StepVerifier.create(result)
-				.expectNext(new Person("foo 0"))
-				.expectNext(new Person("foo 1"))
-				.thenCancel()
-				.verify();
-	}
+        Flux<Person> result = this.webClient.get().uri("/stream")
+            .accept(new MediaType("application", "stream+x-jackson-smile")).retrieve().bodyToFlux(Person.class);
 
-	@ParameterizedHttpServerTest
-	void smileStreaming(HttpServer httpServer) throws Exception {
-		startServer(httpServer);
+        StepVerifier.create(result).expectNext(new Person("foo 0")).expectNext(new Person("foo 1")).thenCancel()
+            .verify();
+    }
 
-		Flux<Person> result = this.webClient.get()
-				.uri("/stream")
-				.accept(new MediaType("application", "stream+x-jackson-smile"))
-				.retrieve()
-				.bodyToFlux(Person.class);
+    @RestController
+    @SuppressWarnings("unused")
+    static class JacksonStreamingController {
 
-		StepVerifier.create(result)
-				.expectNext(new Person("foo 0"))
-				.expectNext(new Person("foo 1"))
-				.thenCancel()
-				.verify();
-	}
+        @GetMapping(value = "/stream", produces = {APPLICATION_STREAM_JSON_VALUE, "application/stream+x-jackson-smile"})
+        Flux<Person> person() {
+            return testInterval(Duration.ofMillis(100), 50).map(l -> new Person("foo " + l));
+        }
 
+    }
 
-	@RestController
-	@SuppressWarnings("unused")
-	static class JacksonStreamingController {
+    @Configuration
+    @EnableWebFlux
+    @SuppressWarnings("unused")
+    static class TestConfiguration {
 
-		@GetMapping(value = "/stream",
-				produces = { APPLICATION_STREAM_JSON_VALUE, "application/stream+x-jackson-smile" })
-		Flux<Person> person() {
-			return testInterval(Duration.ofMillis(100), 50).map(l -> new Person("foo " + l));
-		}
+        @Bean
+        public JacksonStreamingController jsonStreamingController() {
+            return new JacksonStreamingController();
+        }
+    }
 
-	}
+    @SuppressWarnings("unused")
+    private static class Person {
 
-	@Configuration
-	@EnableWebFlux
-	@SuppressWarnings("unused")
-	static class TestConfiguration {
+        private String name;
 
-		@Bean
-		public JacksonStreamingController jsonStreamingController() {
-			return new JacksonStreamingController();
-		}
-	}
+        public Person() {}
 
-	@SuppressWarnings("unused")
-	private static class Person {
+        public Person(String name) {
+            this.name = name;
+        }
 
-		private String name;
+        public String getName() {
+            return name;
+        }
 
-		public Person() {
-		}
+        public void setName(String name) {
+            this.name = name;
+        }
 
-		public Person(String name) {
-			this.name = name;
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Person person = (Person)o;
+            return !(this.name != null ? !this.name.equals(person.name) : person.name != null);
+        }
 
-		public String getName() {
-			return name;
-		}
+        @Override
+        public int hashCode() {
+            return this.name != null ? this.name.hashCode() : 0;
+        }
 
-		public void setName(String name) {
-			this.name = name;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			Person person = (Person) o;
-			return !(this.name != null ? !this.name.equals(person.name) : person.name != null);
-		}
-
-		@Override
-		public int hashCode() {
-			return this.name != null ? this.name.hashCode() : 0;
-		}
-
-		@Override
-		public String toString() {
-			return "Person{" +
-					"name='" + name + '\'' +
-					'}';
-		}
-	}
+        @Override
+        public String toString() {
+            return "Person{" + "name='" + name + '\'' + '}';
+        }
+    }
 
 }

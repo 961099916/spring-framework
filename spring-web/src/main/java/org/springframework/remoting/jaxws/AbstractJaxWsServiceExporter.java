@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2018 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.remoting.jaxws;
@@ -27,22 +24,17 @@ import javax.xml.ws.Endpoint;
 import javax.xml.ws.WebServiceFeature;
 import javax.xml.ws.WebServiceProvider;
 
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.BeanFactoryAware;
-import org.springframework.beans.factory.CannotLoadBeanClassException;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.ListableBeanFactory;
+import org.springframework.beans.factory.*;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * Abstract exporter for JAX-WS services, autodetecting annotated service beans
- * (through the JAX-WS {@link javax.jws.WebService} annotation).
+ * Abstract exporter for JAX-WS services, autodetecting annotated service beans (through the JAX-WS
+ * {@link javax.jws.WebService} annotation).
  *
- * <p>Subclasses need to implement the {@link #publishEndpoint} template methods
- * for actual endpoint exposure.
+ * <p>
+ * Subclasses need to implement the {@link #publishEndpoint} template methods for actual endpoint exposure.
  *
  * @author Juergen Hoeller
  * @since 2.5.5
@@ -52,163 +44,160 @@ import org.springframework.util.Assert;
  */
 public abstract class AbstractJaxWsServiceExporter implements BeanFactoryAware, InitializingBean, DisposableBean {
 
-	@Nullable
-	private Map<String, Object> endpointProperties;
+    private final Set<Endpoint> publishedEndpoints = new LinkedHashSet<>();
+    @Nullable
+    private Map<String, Object> endpointProperties;
+    @Nullable
+    private Executor executor;
+    @Nullable
+    private String bindingType;
+    @Nullable
+    private WebServiceFeature[] endpointFeatures;
+    @Nullable
+    private ListableBeanFactory beanFactory;
 
-	@Nullable
-	private Executor executor;
+    /**
+     * Set the property bag for the endpoint, including properties such as "javax.xml.ws.wsdl.service" or
+     * "javax.xml.ws.wsdl.port".
+     * 
+     * @see javax.xml.ws.Endpoint#setProperties
+     * @see javax.xml.ws.Endpoint#WSDL_SERVICE
+     * @see javax.xml.ws.Endpoint#WSDL_PORT
+     */
+    public void setEndpointProperties(Map<String, Object> endpointProperties) {
+        this.endpointProperties = endpointProperties;
+    }
 
-	@Nullable
-	private String bindingType;
+    /**
+     * Set the JDK concurrent executor to use for dispatching incoming requests to exported service instances.
+     * 
+     * @see javax.xml.ws.Endpoint#setExecutor
+     */
+    public void setExecutor(Executor executor) {
+        this.executor = executor;
+    }
 
-	@Nullable
-	private WebServiceFeature[] endpointFeatures;
+    /**
+     * Specify the binding type to use, overriding the value of the JAX-WS {@link javax.xml.ws.BindingType} annotation.
+     */
+    public void setBindingType(String bindingType) {
+        this.bindingType = bindingType;
+    }
 
-	@Nullable
-	private ListableBeanFactory beanFactory;
+    /**
+     * Specify WebServiceFeature objects (e.g. as inner bean definitions) to apply to JAX-WS endpoint creation.
+     * 
+     * @since 4.0
+     */
+    public void setEndpointFeatures(WebServiceFeature... endpointFeatures) {
+        this.endpointFeatures = endpointFeatures;
+    }
 
-	private final Set<Endpoint> publishedEndpoints = new LinkedHashSet<>();
+    /**
+     * Obtains all web service beans and publishes them as JAX-WS endpoints.
+     */
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) {
+        if (!(beanFactory instanceof ListableBeanFactory)) {
+            throw new IllegalStateException(getClass().getSimpleName() + " requires a ListableBeanFactory");
+        }
+        this.beanFactory = (ListableBeanFactory)beanFactory;
+    }
 
+    /**
+     * Immediately publish all endpoints when fully configured.
+     * 
+     * @see #publishEndpoints()
+     */
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        publishEndpoints();
+    }
 
-	/**
-	 * Set the property bag for the endpoint, including properties such as
-	 * "javax.xml.ws.wsdl.service" or "javax.xml.ws.wsdl.port".
-	 * @see javax.xml.ws.Endpoint#setProperties
-	 * @see javax.xml.ws.Endpoint#WSDL_SERVICE
-	 * @see javax.xml.ws.Endpoint#WSDL_PORT
-	 */
-	public void setEndpointProperties(Map<String, Object> endpointProperties) {
-		this.endpointProperties = endpointProperties;
-	}
+    /**
+     * Publish all {@link javax.jws.WebService} annotated beans in the containing BeanFactory.
+     * 
+     * @see #publishEndpoint
+     */
+    public void publishEndpoints() {
+        Assert.state(this.beanFactory != null, "No BeanFactory set");
 
-	/**
-	 * Set the JDK concurrent executor to use for dispatching incoming requests
-	 * to exported service instances.
-	 * @see javax.xml.ws.Endpoint#setExecutor
-	 */
-	public void setExecutor(Executor executor) {
-		this.executor = executor;
-	}
+        Set<String> beanNames = new LinkedHashSet<>(this.beanFactory.getBeanDefinitionCount());
+        Collections.addAll(beanNames, this.beanFactory.getBeanDefinitionNames());
+        if (this.beanFactory instanceof ConfigurableBeanFactory) {
+            Collections.addAll(beanNames, ((ConfigurableBeanFactory)this.beanFactory).getSingletonNames());
+        }
 
-	/**
-	 * Specify the binding type to use, overriding the value of
-	 * the JAX-WS {@link javax.xml.ws.BindingType} annotation.
-	 */
-	public void setBindingType(String bindingType) {
-		this.bindingType = bindingType;
-	}
+        for (String beanName : beanNames) {
+            try {
+                Class<?> type = this.beanFactory.getType(beanName);
+                if (type != null && !type.isInterface()) {
+                    WebService wsAnnotation = type.getAnnotation(WebService.class);
+                    WebServiceProvider wsProviderAnnotation = type.getAnnotation(WebServiceProvider.class);
+                    if (wsAnnotation != null || wsProviderAnnotation != null) {
+                        Endpoint endpoint = createEndpoint(this.beanFactory.getBean(beanName));
+                        if (this.endpointProperties != null) {
+                            endpoint.setProperties(this.endpointProperties);
+                        }
+                        if (this.executor != null) {
+                            endpoint.setExecutor(this.executor);
+                        }
+                        if (wsAnnotation != null) {
+                            publishEndpoint(endpoint, wsAnnotation);
+                        } else {
+                            publishEndpoint(endpoint, wsProviderAnnotation);
+                        }
+                        this.publishedEndpoints.add(endpoint);
+                    }
+                }
+            } catch (CannotLoadBeanClassException ex) {
+                // ignore beans where the class is not resolvable
+            }
+        }
+    }
 
-	/**
-	 * Specify WebServiceFeature objects (e.g. as inner bean definitions)
-	 * to apply to JAX-WS endpoint creation.
-	 * @since 4.0
-	 */
-	public void setEndpointFeatures(WebServiceFeature... endpointFeatures) {
-		this.endpointFeatures = endpointFeatures;
-	}
+    /**
+     * Create the actual Endpoint instance.
+     * 
+     * @param bean
+     *            the service object to wrap
+     * @return the Endpoint instance
+     * @see Endpoint#create(Object)
+     * @see Endpoint#create(String, Object)
+     */
+    protected Endpoint createEndpoint(Object bean) {
+        return (this.endpointFeatures != null ? Endpoint.create(this.bindingType, bean, this.endpointFeatures)
+            : Endpoint.create(this.bindingType, bean));
+    }
 
-	/**
-	 * Obtains all web service beans and publishes them as JAX-WS endpoints.
-	 */
-	@Override
-	public void setBeanFactory(BeanFactory beanFactory) {
-		if (!(beanFactory instanceof ListableBeanFactory)) {
-			throw new IllegalStateException(getClass().getSimpleName() + " requires a ListableBeanFactory");
-		}
-		this.beanFactory = (ListableBeanFactory) beanFactory;
-	}
+    /**
+     * Actually publish the given endpoint. To be implemented by subclasses.
+     * 
+     * @param endpoint
+     *            the JAX-WS Endpoint object
+     * @param annotation
+     *            the service bean's WebService annotation
+     */
+    protected abstract void publishEndpoint(Endpoint endpoint, WebService annotation);
 
+    /**
+     * Actually publish the given provider endpoint. To be implemented by subclasses.
+     * 
+     * @param endpoint
+     *            the JAX-WS Provider Endpoint object
+     * @param annotation
+     *            the service bean's WebServiceProvider annotation
+     */
+    protected abstract void publishEndpoint(Endpoint endpoint, WebServiceProvider annotation);
 
-	/**
-	 * Immediately publish all endpoints when fully configured.
-	 * @see #publishEndpoints()
-	 */
-	@Override
-	public void afterPropertiesSet() throws Exception {
-		publishEndpoints();
-	}
-
-	/**
-	 * Publish all {@link javax.jws.WebService} annotated beans in the
-	 * containing BeanFactory.
-	 * @see #publishEndpoint
-	 */
-	public void publishEndpoints() {
-		Assert.state(this.beanFactory != null, "No BeanFactory set");
-
-		Set<String> beanNames = new LinkedHashSet<>(this.beanFactory.getBeanDefinitionCount());
-		Collections.addAll(beanNames, this.beanFactory.getBeanDefinitionNames());
-		if (this.beanFactory instanceof ConfigurableBeanFactory) {
-			Collections.addAll(beanNames, ((ConfigurableBeanFactory) this.beanFactory).getSingletonNames());
-		}
-
-		for (String beanName : beanNames) {
-			try {
-				Class<?> type = this.beanFactory.getType(beanName);
-				if (type != null && !type.isInterface()) {
-					WebService wsAnnotation = type.getAnnotation(WebService.class);
-					WebServiceProvider wsProviderAnnotation = type.getAnnotation(WebServiceProvider.class);
-					if (wsAnnotation != null || wsProviderAnnotation != null) {
-						Endpoint endpoint = createEndpoint(this.beanFactory.getBean(beanName));
-						if (this.endpointProperties != null) {
-							endpoint.setProperties(this.endpointProperties);
-						}
-						if (this.executor != null) {
-							endpoint.setExecutor(this.executor);
-						}
-						if (wsAnnotation != null) {
-							publishEndpoint(endpoint, wsAnnotation);
-						}
-						else {
-							publishEndpoint(endpoint, wsProviderAnnotation);
-						}
-						this.publishedEndpoints.add(endpoint);
-					}
-				}
-			}
-			catch (CannotLoadBeanClassException ex) {
-				// ignore beans where the class is not resolvable
-			}
-		}
-	}
-
-	/**
-	 * Create the actual Endpoint instance.
-	 * @param bean the service object to wrap
-	 * @return the Endpoint instance
-	 * @see Endpoint#create(Object)
-	 * @see Endpoint#create(String, Object)
-	 */
-	protected Endpoint createEndpoint(Object bean) {
-		return (this.endpointFeatures != null ?
-				Endpoint.create(this.bindingType, bean, this.endpointFeatures) :
-				Endpoint.create(this.bindingType, bean));
-	}
-
-
-	/**
-	 * Actually publish the given endpoint. To be implemented by subclasses.
-	 * @param endpoint the JAX-WS Endpoint object
-	 * @param annotation the service bean's WebService annotation
-	 */
-	protected abstract void publishEndpoint(Endpoint endpoint, WebService annotation);
-
-	/**
-	 * Actually publish the given provider endpoint. To be implemented by subclasses.
-	 * @param endpoint the JAX-WS Provider Endpoint object
-	 * @param annotation the service bean's WebServiceProvider annotation
-	 */
-	protected abstract void publishEndpoint(Endpoint endpoint, WebServiceProvider annotation);
-
-
-	/**
-	 * Stops all published endpoints, taking the web services offline.
-	 */
-	@Override
-	public void destroy() {
-		for (Endpoint endpoint : this.publishedEndpoints) {
-			endpoint.stop();
-		}
-	}
+    /**
+     * Stops all published endpoints, taking the web services offline.
+     */
+    @Override
+    public void destroy() {
+        for (Endpoint endpoint : this.publishedEndpoints) {
+            endpoint.stop();
+        }
+    }
 
 }

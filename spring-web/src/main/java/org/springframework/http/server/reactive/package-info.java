@@ -4,12 +4,11 @@
  * {@link org.springframework.http.server.reactive.ServerHttpResponse} along with an
  * {@link org.springframework.http.server.reactive.HttpHandler} for processing.
  *
- * <p>Also provides implementations adapting to different runtimes
- * including Servlet 3.1 containers, Netty + Reactor IO, and Undertow.
+ * <p>
+ * Also provides implementations adapting to different runtimes including Servlet 3.1 containers, Netty + Reactor IO,
+ * and Undertow.
  */
-@NonNullApi
-@NonNullFields
-package org.springframework.http.server.reactive;
+@NonNullApi @NonNullFields package org.springframework.http.server.reactive;
 
 import org.springframework.lang.NonNullApi;
 import org.springframework.lang.NonNullFields;

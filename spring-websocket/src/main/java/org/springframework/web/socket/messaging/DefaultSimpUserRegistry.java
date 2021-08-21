@@ -1,17 +1,14 @@
 /*
  * Copyright 2002-2018 the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *      https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.springframework.web.socket.messaging;
@@ -29,331 +26,313 @@ import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.user.DestinationUserNameProvider;
-import org.springframework.messaging.simp.user.SimpSession;
-import org.springframework.messaging.simp.user.SimpSubscription;
-import org.springframework.messaging.simp.user.SimpSubscriptionMatcher;
-import org.springframework.messaging.simp.user.SimpUser;
-import org.springframework.messaging.simp.user.SimpUserRegistry;
+import org.springframework.messaging.simp.user.*;
 import org.springframework.util.Assert;
 
 /**
- * A default implementation of {@link SimpUserRegistry} that relies on
- * {@link AbstractSubProtocolEvent} application context events to keep
- * track of connected users and their subscriptions.
+ * A default implementation of {@link SimpUserRegistry} that relies on {@link AbstractSubProtocolEvent} application
+ * context events to keep track of connected users and their subscriptions.
  *
  * @author Rossen Stoyanchev
  * @since 4.2
  */
 public class DefaultSimpUserRegistry implements SimpUserRegistry, SmartApplicationListener {
 
-	private int order = Ordered.LOWEST_PRECEDENCE;
+    /* Primary lookup that holds all users and their sessions */
+    private final Map<String, LocalSimpUser> users = new ConcurrentHashMap<>();
+    /* Secondary lookup across all sessions by id */
+    private final Map<String, LocalSimpSession> sessions = new ConcurrentHashMap<>();
+    private final Object sessionLock = new Object();
+    private int order = Ordered.LOWEST_PRECEDENCE;
 
-	/* Primary lookup that holds all users and their sessions */
-	private final Map<String, LocalSimpUser> users = new ConcurrentHashMap<>();
+    @Override
+    public int getOrder() {
+        return this.order;
+    }
 
-	/* Secondary lookup across all sessions by id */
-	private final Map<String, LocalSimpSession> sessions = new ConcurrentHashMap<>();
+    /**
+     * Specify the order value for this registry.
+     * <p>
+     * Default is {@link Ordered#LOWEST_PRECEDENCE}.
+     *
+     * @since 5.0.8
+     */
+    public void setOrder(int order) {
+        this.order = order;
+    }
 
-	private final Object sessionLock = new Object();
+    // SmartApplicationListener methods
 
+    @Override
+    public boolean supportsEventType(Class<? extends ApplicationEvent> eventType) {
+        return AbstractSubProtocolEvent.class.isAssignableFrom(eventType);
+    }
 
-	/**
-	 * Specify the order value for this registry.
-	 * <p>Default is {@link Ordered#LOWEST_PRECEDENCE}.
-	 * @since 5.0.8
-	 */
-	public void setOrder(int order) {
-		this.order = order;
-	}
+    @Override
+    public void onApplicationEvent(ApplicationEvent event) {
+        AbstractSubProtocolEvent subProtocolEvent = (AbstractSubProtocolEvent)event;
+        Message<?> message = subProtocolEvent.getMessage();
+        MessageHeaders headers = message.getHeaders();
 
-	@Override
-	public int getOrder() {
-		return this.order;
-	}
+        String sessionId = SimpMessageHeaderAccessor.getSessionId(headers);
+        Assert.state(sessionId != null, "No session id");
 
+        if (event instanceof SessionSubscribeEvent) {
+            LocalSimpSession session = this.sessions.get(sessionId);
+            if (session != null) {
+                String id = SimpMessageHeaderAccessor.getSubscriptionId(headers);
+                String destination = SimpMessageHeaderAccessor.getDestination(headers);
+                if (id != null && destination != null) {
+                    session.addSubscription(id, destination);
+                }
+            }
+        } else if (event instanceof SessionConnectedEvent) {
+            Principal user = subProtocolEvent.getUser();
+            if (user == null) {
+                return;
+            }
+            String name = user.getName();
+            if (user instanceof DestinationUserNameProvider) {
+                name = ((DestinationUserNameProvider)user).getDestinationUserName();
+            }
+            synchronized (this.sessionLock) {
+                LocalSimpUser simpUser = this.users.get(name);
+                if (simpUser == null) {
+                    simpUser = new LocalSimpUser(name);
+                    this.users.put(name, simpUser);
+                }
+                LocalSimpSession session = new LocalSimpSession(sessionId, simpUser);
+                simpUser.addSession(session);
+                this.sessions.put(sessionId, session);
+            }
+        } else if (event instanceof SessionDisconnectEvent) {
+            synchronized (this.sessionLock) {
+                LocalSimpSession session = this.sessions.remove(sessionId);
+                if (session != null) {
+                    LocalSimpUser user = session.getUser();
+                    user.removeSession(sessionId);
+                    if (!user.hasSessions()) {
+                        this.users.remove(user.getName());
+                    }
+                }
+            }
+        } else if (event instanceof SessionUnsubscribeEvent) {
+            LocalSimpSession session = this.sessions.get(sessionId);
+            if (session != null) {
+                String subscriptionId = SimpMessageHeaderAccessor.getSubscriptionId(headers);
+                if (subscriptionId != null) {
+                    session.removeSubscription(subscriptionId);
+                }
+            }
+        }
+    }
 
-	// SmartApplicationListener methods
+    @Override
+    public boolean supportsSourceType(@Nullable Class<?> sourceType) {
+        return true;
+    }
 
-	@Override
-	public boolean supportsEventType(Class<? extends ApplicationEvent> eventType) {
-		return AbstractSubProtocolEvent.class.isAssignableFrom(eventType);
-	}
+    // SimpUserRegistry methods
 
-	@Override
-	public void onApplicationEvent(ApplicationEvent event) {
-		AbstractSubProtocolEvent subProtocolEvent = (AbstractSubProtocolEvent) event;
-		Message<?> message = subProtocolEvent.getMessage();
-		MessageHeaders headers = message.getHeaders();
+    @Override
+    @Nullable
+    public SimpUser getUser(String userName) {
+        return this.users.get(userName);
+    }
 
-		String sessionId = SimpMessageHeaderAccessor.getSessionId(headers);
-		Assert.state(sessionId != null, "No session id");
+    @Override
+    public Set<SimpUser> getUsers() {
+        return new HashSet<>(this.users.values());
+    }
 
-		if (event instanceof SessionSubscribeEvent) {
-			LocalSimpSession session = this.sessions.get(sessionId);
-			if (session != null) {
-				String id = SimpMessageHeaderAccessor.getSubscriptionId(headers);
-				String destination = SimpMessageHeaderAccessor.getDestination(headers);
-				if (id != null && destination != null) {
-					session.addSubscription(id, destination);
-				}
-			}
-		}
-		else if (event instanceof SessionConnectedEvent) {
-			Principal user = subProtocolEvent.getUser();
-			if (user == null) {
-				return;
-			}
-			String name = user.getName();
-			if (user instanceof DestinationUserNameProvider) {
-				name = ((DestinationUserNameProvider) user).getDestinationUserName();
-			}
-			synchronized (this.sessionLock) {
-				LocalSimpUser simpUser = this.users.get(name);
-				if (simpUser == null) {
-					simpUser = new LocalSimpUser(name);
-					this.users.put(name, simpUser);
-				}
-				LocalSimpSession session = new LocalSimpSession(sessionId, simpUser);
-				simpUser.addSession(session);
-				this.sessions.put(sessionId, session);
-			}
-		}
-		else if (event instanceof SessionDisconnectEvent) {
-			synchronized (this.sessionLock) {
-				LocalSimpSession session = this.sessions.remove(sessionId);
-				if (session != null) {
-					LocalSimpUser user = session.getUser();
-					user.removeSession(sessionId);
-					if (!user.hasSessions()) {
-						this.users.remove(user.getName());
-					}
-				}
-			}
-		}
-		else if (event instanceof SessionUnsubscribeEvent) {
-			LocalSimpSession session = this.sessions.get(sessionId);
-			if (session != null) {
-				String subscriptionId = SimpMessageHeaderAccessor.getSubscriptionId(headers);
-				if (subscriptionId != null) {
-					session.removeSubscription(subscriptionId);
-				}
-			}
-		}
-	}
+    @Override
+    public int getUserCount() {
+        return this.users.size();
+    }
 
-	@Override
-	public boolean supportsSourceType(@Nullable Class<?> sourceType) {
-		return true;
-	}
+    @Override
+    public Set<SimpSubscription> findSubscriptions(SimpSubscriptionMatcher matcher) {
+        Set<SimpSubscription> result = new HashSet<>();
+        for (LocalSimpSession session : this.sessions.values()) {
+            for (SimpSubscription subscription : session.subscriptions.values()) {
+                if (matcher.match(subscription)) {
+                    result.add(subscription);
+                }
+            }
+        }
+        return result;
+    }
 
+    @Override
+    public String toString() {
+        return "users=" + this.users;
+    }
 
-	// SimpUserRegistry methods
+    private static class LocalSimpUser implements SimpUser {
 
-	@Override
-	@Nullable
-	public SimpUser getUser(String userName) {
-		return this.users.get(userName);
-	}
+        private final String name;
 
-	@Override
-	public Set<SimpUser> getUsers() {
-		return new HashSet<>(this.users.values());
-	}
+        private final Map<String, SimpSession> userSessions = new ConcurrentHashMap<>(1);
 
-	@Override
-	public int getUserCount() {
-		return this.users.size();
-	}
+        public LocalSimpUser(String userName) {
+            Assert.notNull(userName, "User name must not be null");
+            this.name = userName;
+        }
 
-	@Override
-	public Set<SimpSubscription> findSubscriptions(SimpSubscriptionMatcher matcher) {
-		Set<SimpSubscription> result = new HashSet<>();
-		for (LocalSimpSession session : this.sessions.values()) {
-			for (SimpSubscription subscription : session.subscriptions.values()) {
-				if (matcher.match(subscription)) {
-					result.add(subscription);
-				}
-			}
-		}
-		return result;
-	}
+        @Override
+        public String getName() {
+            return this.name;
+        }
 
+        @Override
+        public boolean hasSessions() {
+            return !this.userSessions.isEmpty();
+        }
 
-	@Override
-	public String toString() {
-		return "users=" + this.users;
-	}
+        @Override
+        @Nullable
+        public SimpSession getSession(@Nullable String sessionId) {
+            return (sessionId != null ? this.userSessions.get(sessionId) : null);
+        }
 
+        @Override
+        public Set<SimpSession> getSessions() {
+            return new HashSet<>(this.userSessions.values());
+        }
 
-	private static class LocalSimpUser implements SimpUser {
+        void addSession(SimpSession session) {
+            this.userSessions.put(session.getId(), session);
+        }
 
-		private final String name;
+        void removeSession(String sessionId) {
+            this.userSessions.remove(sessionId);
+        }
 
-		private final Map<String, SimpSession> userSessions = new ConcurrentHashMap<>(1);
+        @Override
+        public boolean equals(@Nullable Object other) {
+            return (this == other || (other instanceof SimpUser && getName().equals(((SimpUser)other).getName())));
+        }
 
-		public LocalSimpUser(String userName) {
-			Assert.notNull(userName, "User name must not be null");
-			this.name = userName;
-		}
+        @Override
+        public int hashCode() {
+            return getName().hashCode();
+        }
 
-		@Override
-		public String getName() {
-			return this.name;
-		}
+        @Override
+        public String toString() {
+            return "name=" + getName() + ", sessions=" + this.userSessions;
+        }
+    }
 
-		@Override
-		public boolean hasSessions() {
-			return !this.userSessions.isEmpty();
-		}
+    private static class LocalSimpSession implements SimpSession {
 
-		@Override
-		@Nullable
-		public SimpSession getSession(@Nullable String sessionId) {
-			return (sessionId != null ? this.userSessions.get(sessionId) : null);
-		}
+        private final String id;
 
-		@Override
-		public Set<SimpSession> getSessions() {
-			return new HashSet<>(this.userSessions.values());
-		}
+        private final LocalSimpUser user;
 
-		void addSession(SimpSession session) {
-			this.userSessions.put(session.getId(), session);
-		}
+        private final Map<String, SimpSubscription> subscriptions = new ConcurrentHashMap<>(4);
 
-		void removeSession(String sessionId) {
-			this.userSessions.remove(sessionId);
-		}
+        public LocalSimpSession(String id, LocalSimpUser user) {
+            Assert.notNull(id, "Id must not be null");
+            Assert.notNull(user, "User must not be null");
+            this.id = id;
+            this.user = user;
+        }
 
-		@Override
-		public boolean equals(@Nullable Object other) {
-			return (this == other ||
-					(other instanceof SimpUser && getName().equals(((SimpUser) other).getName())));
-		}
+        @Override
+        public String getId() {
+            return this.id;
+        }
 
-		@Override
-		public int hashCode() {
-			return getName().hashCode();
-		}
+        @Override
+        public LocalSimpUser getUser() {
+            return this.user;
+        }
 
-		@Override
-		public String toString() {
-			return "name=" + getName() + ", sessions=" + this.userSessions;
-		}
-	}
+        @Override
+        public Set<SimpSubscription> getSubscriptions() {
+            return new HashSet<>(this.subscriptions.values());
+        }
 
+        void addSubscription(String id, String destination) {
+            this.subscriptions.put(id, new LocalSimpSubscription(id, destination, this));
+        }
 
-	private static class LocalSimpSession implements SimpSession {
+        void removeSubscription(String id) {
+            this.subscriptions.remove(id);
+        }
 
-		private final String id;
+        @Override
+        public boolean equals(@Nullable Object other) {
+            return (this == other
+                || (other instanceof SimpSubscription && getId().equals(((SimpSubscription)other).getId())));
+        }
 
-		private final LocalSimpUser user;
+        @Override
+        public int hashCode() {
+            return getId().hashCode();
+        }
 
-		private final Map<String, SimpSubscription> subscriptions = new ConcurrentHashMap<>(4);
+        @Override
+        public String toString() {
+            return "id=" + getId() + ", subscriptions=" + this.subscriptions;
+        }
+    }
 
-		public LocalSimpSession(String id, LocalSimpUser user) {
-			Assert.notNull(id, "Id must not be null");
-			Assert.notNull(user, "User must not be null");
-			this.id = id;
-			this.user = user;
-		}
+    private static class LocalSimpSubscription implements SimpSubscription {
 
-		@Override
-		public String getId() {
-			return this.id;
-		}
+        private final String id;
 
-		@Override
-		public LocalSimpUser getUser() {
-			return this.user;
-		}
+        private final LocalSimpSession session;
 
-		@Override
-		public Set<SimpSubscription> getSubscriptions() {
-			return new HashSet<>(this.subscriptions.values());
-		}
+        private final String destination;
 
-		void addSubscription(String id, String destination) {
-			this.subscriptions.put(id, new LocalSimpSubscription(id, destination, this));
-		}
+        public LocalSimpSubscription(String id, String destination, LocalSimpSession session) {
+            Assert.notNull(id, "Id must not be null");
+            Assert.hasText(destination, "Destination must not be empty");
+            Assert.notNull(session, "Session must not be null");
+            this.id = id;
+            this.destination = destination;
+            this.session = session;
+        }
 
-		void removeSubscription(String id) {
-			this.subscriptions.remove(id);
-		}
+        @Override
+        public String getId() {
+            return this.id;
+        }
 
-		@Override
-		public boolean equals(@Nullable Object other) {
-			return (this == other ||
-					(other instanceof SimpSubscription && getId().equals(((SimpSubscription) other).getId())));
-		}
+        @Override
+        public LocalSimpSession getSession() {
+            return this.session;
+        }
 
-		@Override
-		public int hashCode() {
-			return getId().hashCode();
-		}
+        @Override
+        public String getDestination() {
+            return this.destination;
+        }
 
-		@Override
-		public String toString() {
-			return "id=" + getId() + ", subscriptions=" + this.subscriptions;
-		}
-	}
+        @Override
+        public boolean equals(@Nullable Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof SimpSubscription)) {
+                return false;
+            }
+            SimpSubscription otherSubscription = (SimpSubscription)other;
+            return (getId().equals(otherSubscription.getId())
+                && getSession().getId().equals(otherSubscription.getSession().getId()));
+        }
 
+        @Override
+        public int hashCode() {
+            return getId().hashCode() * 31 + getSession().getId().hashCode();
+        }
 
-	private static class LocalSimpSubscription implements SimpSubscription {
-
-		private final String id;
-
-		private final LocalSimpSession session;
-
-		private final String destination;
-
-		public LocalSimpSubscription(String id, String destination, LocalSimpSession session) {
-			Assert.notNull(id, "Id must not be null");
-			Assert.hasText(destination, "Destination must not be empty");
-			Assert.notNull(session, "Session must not be null");
-			this.id = id;
-			this.destination = destination;
-			this.session = session;
-		}
-
-		@Override
-		public String getId() {
-			return this.id;
-		}
-
-		@Override
-		public LocalSimpSession getSession() {
-			return this.session;
-		}
-
-		@Override
-		public String getDestination() {
-			return this.destination;
-		}
-
-		@Override
-		public boolean equals(@Nullable Object other) {
-			if (this == other) {
-				return true;
-			}
-			if (!(other instanceof SimpSubscription)) {
-				return false;
-			}
-			SimpSubscription otherSubscription = (SimpSubscription) other;
-			return (getId().equals(otherSubscription.getId()) &&
-					getSession().getId().equals(otherSubscription.getSession().getId()));
-		}
-
-		@Override
-		public int hashCode() {
-			return getId().hashCode() * 31 + getSession().getId().hashCode();
-		}
-
-		@Override
-		public String toString() {
-			return "destination=" + this.destination;
-		}
-	}
+        @Override
+        public String toString() {
+            return "destination=" + this.destination;
+        }
+    }
 
 }
